@@ -276,17 +276,17 @@ variable hld
 \     0010  4   header 1 in
 \     0020  5   header 1 out    header 1 out
 \     0040  6   header 1 dir    header 1 dir
-\     0080  7
+\     0080  7                   eint
 \
 \     0100  8   header 2 in
 \     0200  9   header 2 out    header 2 out
 \     0400  10  header 2 dir    header 2 dir
-\     0800  11
+\     0800  11                  dint
 \
 \     1000  12  UART RX         UART TX
 \     2000  13  misc.in
 \     4000  14  ticks           clear ticks
-\     8000  15   ----- SB_WARMBOOT -----
+\     8000  15
 \
 \
 \ Contents of misc.out and misc.in:
@@ -316,6 +316,7 @@ variable hld
 : randombit ( -- 0 | 1 ) $2000 io@ $20 and 5 rshift ;
 : random ( -- x ) 0  16 0 do 2* randombit or 100 0 do loop loop ;
 
+$608C $1FFE ! \ Location $1FFE is an interrupt vector ! Place ALU exit opcode here.
 
 \ #######   Flash   ###########################################
 

@@ -91,7 +91,6 @@ var pc : word = 0;
     dstack : array[0..dstacksize-1] of word;
     rstack : array[0..rstacksize-1] of word;
     memory : array[0..$0FFF] of word;
-    ioaddr : word;
 
 (*
 
@@ -256,7 +255,7 @@ begin
                    $0B00: tosN := rtos;
 
                    $0C00: tosN := nos - tos;
-                   $0D00: tosN := readio(ioaddr);
+                   $0D00: tosN := readio(tos);
                    $0E00: tosN := depth;
                    $0F00: tosN := flag( nos < tos );                   
                  end;
@@ -279,7 +278,6 @@ begin
                  if (insn and $0070) = $0020 then rstack[0] := tos;            // T --> R
                  if (insn and $0070) = $0030 then memory[tos shr 1] := nos;   // Memory write
                  if (insn and $0070) = $0040 then writeio(tos, nos);         // IO write
-                 if (insn and $0070) = $0050 then ioaddr := tos;            // Prepare IO read
                  
                  dstack[0] := tosN;
 

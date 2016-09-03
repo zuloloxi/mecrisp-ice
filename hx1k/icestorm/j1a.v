@@ -121,7 +121,7 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
                          .REFERENCECLK(oscillator),
                          .PLLOUTCORE(clk),
                          //.PLLOUTGLOBAL(clk),
-                         // .LOCK(D5),
+                         //.LOCK(D5),
                          .RESETB(1'b1),
                          .BYPASS(1'b0)
                         );
@@ -132,9 +132,15 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
   wire [15:0] dout;
   wire [15:0] io_din;
   wire [12:0] code_addr;
+
   reg unlocked = 0;
 
 `include "../build/ram.v"
+
+  reg interrupt = 0;
+  reg interrupt_enable = 0;
+
+  // ######   PROCESSOR   #####################################
 
   j1 _j1(
     .clk(clk),
@@ -146,29 +152,24 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
     .io_din(io_din),
     .mem_addr(mem_addr),
     .code_addr(code_addr),
-    .insn(insn));
-
-  // ######   IO SIGNALS   ####################################
-
-  reg io_wr_, io_rd_;
-  reg [15:0] dout_;
-  reg [15:0] io_addr_;
-
-  always @(posedge clk) begin
-    {io_rd_, io_wr_, dout_} <= {io_rd, io_wr, dout};
-    if (io_rd | io_wr)
-      io_addr_ <= mem_addr;
-  end
+    .insn_from_memory(insn),
+    .interrupt(interrupt)
+  );
 
   // ######   TICKS   #########################################
 
   reg [15:0] ticks;
 
+  wire [16:0] ticks_plus_1 = ticks + 1;
+
   always @(posedge clk)
-    if (io_wr_ & io_addr_[14])
+    if (io_wr & mem_addr[14])
       ticks <= 0;
     else
-      ticks <= ticks + 1;
+      ticks <= ticks_plus_1;
+
+  always @(posedge clk) // Generate interrupt on ticks overflow
+    interrupt <= interrupt_enable & ticks_plus_1[16];
 
   // ######   PMOD   ##########################################
 
@@ -219,8 +220,8 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
 
   wire uart0_valid, uart0_busy;
   wire [7:0] uart0_data;
-  wire uart0_wr = io_wr_ & io_addr_[12];
-  wire uart0_rd = io_rd_ & io_addr_[12];
+  wire uart0_wr = io_wr & mem_addr[12];
+  wire uart0_rd = io_rd & mem_addr[12];
   wire UART0_RX;
   buart _uart0 (
      .clk(clk),
@@ -231,7 +232,7 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
      .wr(uart0_wr),
      .valid(uart0_valid),
      .busy(uart0_busy),
-     .tx_data(dout_[7:0]),
+     .tx_data(dout[7:0]),
      .rx_data(uart0_data));
 
   // ######   LEDS & PIOS   ###################################
@@ -269,61 +270,68 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
       0010  4   header 1 in
       0020  5   header 1 out    header 1 out
       0040  6   header 1 dir    header 1 dir
-      0080  7
+      0080  7                   eint
 
       0100  8   header 2 in
       0200  9   header 2 out    header 2 out
       0400  10  header 2 dir    header 2 dir
-      0800  11
+      0800  11                  dint
 
       1000  12  UART RX         UART TX
       2000  13  misc.in
       4000  14  ticks           clear ticks
-      8000  15   ----- SB_WARMBOOT -----
+      8000  15
   */
 
   assign io_din =
 
-    (io_addr_[ 0] ? { 8'd0, pmod_in}                                                 : 16'd0) |
-    (io_addr_[ 1] ? { 8'd0, pmod_out}                                                : 16'd0) |
-    (io_addr_[ 2] ? { 8'd0, pmod_dir}                                                : 16'd0) |
-    (io_addr_[ 3] ? { 5'd0, LEDS, PIOS}                                              : 16'd0) |
+    (mem_addr[ 0] ? { 8'd0, pmod_in}                                                 : 16'd0) |
+    (mem_addr[ 1] ? { 8'd0, pmod_out}                                                : 16'd0) |
+    (mem_addr[ 2] ? { 8'd0, pmod_dir}                                                : 16'd0) |
+    (mem_addr[ 3] ? { 5'd0, LEDS, PIOS}                                              : 16'd0) |
 
-    (io_addr_[ 4] ? { 8'd0, header1_in}                                              : 16'd0) |
-    (io_addr_[ 5] ? { 8'd0, header1_out}                                             : 16'd0) |
-    (io_addr_[ 6] ? { 8'd0, header1_dir}                                             : 16'd0) |
-
-
-    (io_addr_[ 8] ? { 8'd0, header2_in}                                              : 16'd0) |
-    (io_addr_[ 9] ? { 8'd0, header2_out}                                             : 16'd0) |
-    (io_addr_[10] ? { 8'd0, header2_dir}                                             : 16'd0) |
+    (mem_addr[ 4] ? { 8'd0, header1_in}                                              : 16'd0) |
+    (mem_addr[ 5] ? { 8'd0, header1_out}                                             : 16'd0) |
+    (mem_addr[ 6] ? { 8'd0, header1_dir}                                             : 16'd0) |
 
 
-    (io_addr_[12] ? { 8'd0, uart0_data}                                              : 16'd0) |
-    (io_addr_[13] ? {10'd0, random, RTS, PIO1_19, PIOS_01, uart0_valid, !uart0_busy} : 16'd0) |
-    (io_addr_[14] ?         ticks                                                    : 16'd0) ;
+    (mem_addr[ 8] ? { 8'd0, header2_in}                                              : 16'd0) |
+    (mem_addr[ 9] ? { 8'd0, header2_out}                                             : 16'd0) |
+    (mem_addr[10] ? { 8'd0, header2_dir}                                             : 16'd0) |
+
+
+    (mem_addr[12] ? { 8'd0, uart0_data}                                              : 16'd0) |
+    (mem_addr[13] ? {10'd0, random, RTS, PIO1_19, PIOS_01, uart0_valid, !uart0_busy} : 16'd0) |
+    (mem_addr[14] ?         ticks                                                    : 16'd0) ;
 
   // Very few gates needed: Simply trigger warmboot by any IO access to $8000 / $8001 / $8002 / $8003.
-  SB_WARMBOOT _sb_warmboot ( .BOOT(io_addr_[15]), .S1(io_addr_[1]), .S0(io_addr_[0]) );
+  // SB_WARMBOOT _sb_warmboot ( .BOOT(io_wr & mem_addr[15]), .S1(mem_addr[1]), .S0(mem_addr[0]) );
 
   always @(posedge clk) begin
 
-    if (io_wr_ & io_addr_[1])  pmod_out <= dout_[7:0];
-    if (io_wr_ & io_addr_[2])  pmod_dir <= dout_[7:0];
-    if (io_wr_ & io_addr_[3])  {LEDS, PIOS} <= dout_[10:0];
+    if (io_wr & mem_addr[1])  pmod_out <= dout[7:0];
+    if (io_wr & mem_addr[2])  pmod_dir <= dout[7:0];
+    if (io_wr & mem_addr[3])  {LEDS, PIOS} <= dout[10:0];
 
-    if (io_wr_ & io_addr_[5])  header1_out <= dout_[7:0];
-    if (io_wr_ & io_addr_[6])  header1_dir <= dout_[7:0];
+    if (io_wr & mem_addr[5])  header1_out <= dout[7:0];
+    if (io_wr & mem_addr[6])  header1_dir <= dout[7:0];
+    if (io_wr & mem_addr[7])  interrupt_enable <= 1;
 
-    if (io_wr_ & io_addr_[9])  header2_out <= dout_[7:0];
-    if (io_wr_ & io_addr_[10]) header2_dir <= dout_[7:0];
+    if (io_wr & mem_addr[9])  header2_out <= dout[7:0];
+    if (io_wr & mem_addr[10]) header2_dir <= dout[7:0];
+    if (io_wr & mem_addr[11]) interrupt_enable <= 0;
 
   end
 
+  // ######   MEMLOCK   #######################################
+
+  // This is a workaround to protect memory contents during Reset.
+  // Somehow it happens sometimes that the first memory location is corrupted during startup,
+  // and as an IO write is one of the earliest things which are done, memory write access is unlocked
+  // only after the processor is up and running and sending its welcome message.
+
   always @(negedge resetq or posedge clk)
-    if (!resetq)
-      unlocked <= 0;
-    else
-      unlocked <= unlocked | io_wr_;
+  if (!resetq) unlocked <= 0;
+  else         unlocked <= unlocked | io_wr;
 
 endmodule // top

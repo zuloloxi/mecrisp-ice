@@ -102,17 +102,17 @@ There is a separate IO address space, with those registers available:
      0010  4   header 1 in
      0020  5   header 1 out    header 1 out
      0040  6   header 1 dir    header 1 dir
-     0080  7
+     0080  7                   eint
 
      0100  8   header 2 in
      0200  9   header 2 out    header 2 out
      0400  10  header 2 dir    header 2 dir
-     0800  11
+     0800  11                  dint
 
      1000  12  UART RX         UART TX
      2000  13  misc.in
      4000  14  ticks           clear ticks
-     8000  15   ----- SB_WARMBOOT -----
+     8000  15
 
 Contents of misc.out and misc.in:
 
@@ -159,10 +159,9 @@ and you should only write to it when "Ready to Transmit" is set.
 Ticks contains a 16 bit cycle counter that counts up with 12 MHz.
 Any write to it clears it and sets its value back to zero.
 
-$8000 is a very special register:
-You can trigger a FPGA reconfiguration by reading IO address $8000.
-
-If you only want to restart Forth, 0 execute is suifficient.
+Memory location $1FFE is an interrupt vector for the ticks counter overflow.
+You can place an opcode there, perhaps ALU Exit ($608C) or a JMP to a handler.
+Interrupts can be enabled with eint and disabled with dint.
 
 -------------------------------------------------------------------------------
 
@@ -705,6 +704,9 @@ Sectors from 1 to 63. Sector 1 is automatically loaded after Reset.
 
         randombit       ( -- 0 | 1 ) Gives a random bit
         random          ( -- x ) Gives a random number
+
+        eint            ( -- ) Enable ticks counter overflow interrupt
+        dint            ( -- ) Disable interrupt
 
 ;------------------------------------------------------------------------------
 ; Insight tools that are gone after NEW

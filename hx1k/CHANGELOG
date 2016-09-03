@@ -34,3 +34,10 @@ Equipped by Matthias Koch with:
 * Small speed improvements
 * Ice Cream Machine emulates J1a and helps building the package in one step
 * Removed tethered mode
+
+07. March 2016: Mecrisp-Ice 0.5
+
+* Single cycle io@
+* Ticks counter overflow interrupt, $1FFE is vector. Place exit or a JMP opcode there.
+* Added eint and dint
+* Removed SB_Warmboot

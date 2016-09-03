@@ -2,7 +2,7 @@
 \ Swapforth Nucleus by James Bowman enhanced with constant folding and inline optimisations by Matthias Koch
 
 header-1-foldable 1+       : 1+        d# 1 + ;
-header-1-foldable negate   : negate    invert 1+ ;
+header-1-foldable negate   : negate    invert d# 1 + ;
 header-1-foldable 1-       : 1-        d# 1 - ;
 header-1-foldable 0=       : 0=        d# 0 = ;
 header-1-foldable cell+    : cell+     d# 2 + ;
@@ -16,20 +16,13 @@ header-2-foldable u>       : u>        swap u< ;
 
 header-1-foldable drop     : tdrop     drop     ;
 
-: off   ( a -- ) \ store 0 to a
-    d# 0 swap
-;fallthru
-: _!    ( x a -- ) \ subroutine version of store
-    !
-;
-
 header-2-foldable lshift
 : lshift
     begin
         dup
     while
         swap 2* swap
-        1-
+        d# 1 -
     repeat
     drop
 ;
@@ -40,7 +33,7 @@ header-2-foldable rshift
         dup
     while
         swap 2/ h# 7fff and swap
-        1-
+        d# 1 -
     repeat
     drop
 ;
@@ -51,22 +44,16 @@ header-2-foldable arshift
         dup
     while
         swap 2/ swap
-        1-
+        d# 1 -
     repeat
     drop
 ;
 
-header emit?  \ Put less R-Stack burden on emit
-: emit?
-  d# 1
-: uart-stat ( mask -- f ) \ is bit in UART status register on?
-    h# 2000 io@ and 0<>
-;
+header emit?
+: emit?  ( -- ? )  d# 1 : uartstat h# 2000 io@ overand = ;
 
 header key?
-: key?
-    d# 2 uart-stat
-;
+: key?   ( -- ? )  d# 2   uartstat ;
 
 header key
 : key
@@ -135,7 +122,7 @@ header execute
 
 header @
 : @
-    h# 2000 or execute
+    h# 2000 or >r
 ;
 
 header-0-foldable false    : false d# 0 ;
@@ -147,7 +134,7 @@ header-2-foldable 2drop    : 2drop drop drop ;
 header-1-foldable ?dup     : ?dup  dup if dup then ;
 
 header-2-foldable 2dup     : 2dup  over over ;
-header +!                  : +!    tuck @ + swap _! ;
+header +!                  : +!    tuck @ + swap ! ;
 header-4-foldable 2swap    : 2swap rot >r rot r> ;
 header-4-foldable 2over    : 2over >r >r 2dup r> r> 2swap ;
 
@@ -157,8 +144,6 @@ header-2-foldable max      : max   2dup< if nip else drop then ;
 header-2-foldable umin     : umin  2dupu< if drop else nip then ;
 header-2-foldable umax     : umax  2dupu< if nip else drop then ;
 
-
-: on    ( a -- ) true swap _! ;
 
 header c@
 : c@
@@ -180,12 +165,15 @@ header c!
         h# ff00
     then
     r@ @ and
-    or r> _!
+    or r>
+;fallthru
+: _!    ( x a -- ) \ subroutine version of store
+    !
 ;
 
 header count
 : count
-    dup 1+ swap c@
+    d# 1 over+ swap c@
 ;
 
 header-2-foldable bounds
@@ -264,20 +252,18 @@ header-1-foldable aligned
 
 header-4-foldable d+
 : d+                              ( augend . addend . -- sum . )
-    rot + >r                      ( augend addend)
-    over+                         ( augend sum)
-    swap over swap                ( sum sum augend)
-    u< if                         ( sum)
-        r> 1+
-    else
-        r>
-    then                          ( sum . )
+    swap >r + swap                  ( h al )
+    r@ + swap                       ( l h )
+    over r> u< -
 ;
 
 header-2-foldable dnegate
 : dnegate
-    invert swap invert swap
-    d# 1 d# 0 d+
+    invert
+    swap                        ( ~hi lo )
+    negate                      ( ~hi -lo )
+    tuck                        ( -lo ~hi -lo )
+    0= -
 ;
 
 header-4-foldable d-
@@ -669,23 +655,24 @@ header immediate
     @ or r> _!
 ;
 
-
 header foldable
 : foldable
   1+ d# 13 lshift
   setflags
 ;
 
+header-imm [
+: t[
+    state
+;fallthru
+: off ( a -- ) d# 0 swap _! ;
+
 header ]
 : t]
     fineforoptimisation off  \  : --> No opcodes written yet - never recognize header bytes as opcodes !
-    state on                 \ ] --> Something strange might just went on. Careful !
-;
-
-header-imm [
-: t[
-    state off
-;
+    state                    \ ] --> Something strange might just went on. Careful !
+;fallthru
+: on  ( a -- ) true swap _! ;
 
 header :
 :noname
@@ -1224,11 +1211,11 @@ header idle
 ;
 
 : spixbit
-    dup 0< d# 2 and            \ extract MS bit
-    dup d# 8 io!               \ lower SCK, update MOSI
-    d# 4 + d# 8 io!               \ raise SCK
-    2*                      \ next bit
-    h# 2000 io@ d# 4 and +       \ read MISO, accumulate
+    dup 0< d# 2 and        \ extract MS bit
+    dup d# 8 io!            \ lower SCK, update MOSI
+    d# 4 + d# 8 io!          \ raise SCK
+    2*                        \ next bit
+    h# 2000 io@ d# 4 and +     \ read MISO, accumulate
 ;
 
 header spix
@@ -1275,7 +1262,11 @@ header load
   quit
 ;
 
+header eint : eint ( -- ) h# 0 h# 0080 io! ;
+header dint : dint ( -- ) h# 0 h# 0800 io! ;
+
 : main
+    dint     \ Disable interrupts
     key> drop \ Reset UART state
 
     cr
@@ -1293,7 +1284,7 @@ header load
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 4 emit
+    [char] 5 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.

@@ -21,13 +21,12 @@
 : T->R      h# 0020 or ;
 : N->[T]    h# 0030 or ;
 : N->io[T]  h# 0040 or ;
-: _IORD_    h# 0050 or ;
+: IORD      h# 0050 or ;
 : RET       h# 0080 or ;
 
 : d-1       h# 0003 or ;
 : d+1       h# 0001 or ;
 : r-1       h# 000c or ;
-: r-2       h# 0008 or ;
 : r+1       h# 0004 or ;
 
 : imm       h# 8000 or tcode, ;
@@ -35,7 +34,6 @@
 : ubranch   h# 0000 or tcode, ;
 : 0branch   h# 2000 or tcode, ;
 : scall     h# 4000 or tcode, ;
-
 
 :: noop      T                       alu ;
 :: +         T+N                 d-1 alu ;
@@ -55,19 +53,15 @@
 :: >r        N     T->R      r+1 d-1 alu ;
 :: r>        rT    T->N      r-1 d+1 alu ;
 :: r@        rT    T->N          d+1 alu ;
-:: io@       T     _IORD_            alu
-             io[T]                   alu ;
-:: !
-             T     N->[T]        d-1 alu
+:: io@       io[T] IORD              alu ;
+:: !         T     N->[T]        d-1 alu
              N                   d-1 alu ;
-:: io!
-             T     N->io[T]      d-1 alu
+:: io!       T     N->io[T]      d-1 alu
              N                   d-1 alu ;
 :: 2/        T2/                     alu ;
 :: 2*        T2*                     alu ;
 :: depth     status T->N         d+1 alu ;
 :: exit      T  RET              r-1 alu ;
-:: hack      T      N->io[T]         alu ;
 
 \ Elided words
 \ These words are supported by the hardware but are not
@@ -81,6 +75,7 @@
 :: 2dup=     N==T  T->N          d+1 alu ;
 :: 2dupor    T|N   T->N          d+1 alu ;
 :: 2dup+     T+N   T->N          d+1 alu ;
+:: 2dup-     N-T   T->N          d+1 alu ;
 :: 2dupu<    Nu<T  T->N          d+1 alu ;
 :: 2dupxor   T^N   T->N          d+1 alu ;
 :: dup>r     T     T->R      r+1     alu ;
@@ -89,8 +84,11 @@
 :: over=     N==T                    alu ;
 :: overor    T|N                     alu ;
 :: over+     T+N                     alu ;
+:: over-     N-T                     alu ;
 :: overu>    Nu<T                    alu ;
 :: overxor   T^N                     alu ;
 :: rdrop     T                   r-1 alu ;
 :: tuck!     T     N->[T]        d-1 alu ;
 :: tuckio!   T     N->io[T]      d-1 alu ;
+:: 2dup!     T     N->[T]            alu ;
+:: 2dupio!   T     N->io[T]          alu ;
