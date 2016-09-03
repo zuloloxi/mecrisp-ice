@@ -74,3 +74,10 @@ Equipped by Matthias Koch with:
   * Initialised variables
   * LF only instead of CR+LF
   
+05. June 2016, Mecrisp-Ice 0.8
+
+* New target: Nandland Go board by Russell Merrick
+* Timer can be set to any value now
+* Improved interrupt handling, with dint and eint as opcodes
+* Added eint?
+

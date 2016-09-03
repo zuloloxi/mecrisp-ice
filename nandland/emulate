@@ -1,0 +1,20 @@
+#!/bin/bash
+
+echo "Tidy up..."
+rm -f build/*
+
+echo "Compile nucleus..."
+gforth cross.fs instructionset.fs nucleus.fs
+echo ""
+
+echo "Compile Ice Cream Machine..."
+cd emulator
+fpc -XX icecreammachine
+cd ..
+
+echo "Compile additional Forth sources..."
+emulator/icecreammachine build/nucleus.hex build/iceimage.hex basisdefinitions.fs > build/log.txt
+
+echo "Start Ice Cream Machine... Press ESC to exit."
+emulator/icecreammachine build/iceimage.hex
+

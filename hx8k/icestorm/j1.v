@@ -14,8 +14,11 @@ module j1(
 
   output wire [12:0] code_addr,
   input  wire [15:0] insn_from_memory,
-  input  wire interrupt
+  input  wire interrupt_request
 );
+
+  reg interrupt_enable = 0;  
+  wire interrupt = interrupt_request & interrupt_enable;
 
   reg [4:0] rsp, rspN;          // Return stack pointer
   reg [4:0] dsp, dspN;          // Data stack pointer
@@ -102,6 +105,8 @@ module j1(
   wire func_write = (insn[6:4] == 3);
   wire func_iow =   (insn[6:4] == 4);
   wire func_ior =   (insn[6:4] == 5);
+  wire func_dint =  (insn[6:4] == 6);
+  wire func_eint =  (insn[6:4] == 7);  
 
   wire is_alu = !fetch & (insn[15:13] == 3'b011);
 
@@ -110,8 +115,13 @@ module j1(
   assign io_rd  = notreboot & is_alu & func_ior;
   assign dout   = st1;
 
+  wire eint = notreboot & is_alu & func_eint;
+  wire dint = notreboot & is_alu & func_dint;
+  
+  wire interrupt_enableN = (interrupt_enable | eint) & ~dint;  
+  
   // Value which could be written to return stack: Either return address in case of a call or TOS.
-  assign rstkD = (insn[13] == 1'b0) ? {1'b0, pc_plus_1, 1'b0} : st0;
+  assign rstkD = (insn[13] == 1'b0) ? {1'b0, pc_plus_1, interrupt_enable} : st0;
 
   always @*
   begin
@@ -147,10 +157,10 @@ module j1(
   begin
     if (!resetq) begin
       notreboot <= 0;
-      { pc, dsp, rsp, st0} <= 0;
+      { pc, dsp, rsp, st0, interrupt_enable} <= 0;
     end else begin
       notreboot <= 1;
-      { pc, dsp, rsp, st0} <= { pcN, dspN, rspN, st0N };
+      { pc, dsp, rsp, st0, interrupt_enable} <= { pcN, dspN, rspN, st0N, interrupt_enableN };
     end
   end
 

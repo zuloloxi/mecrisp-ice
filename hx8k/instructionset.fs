@@ -35,6 +35,8 @@
 : N->[T]    h# 0030 or ;
 : N->io[T]  h# 0040 or ;
 : IORD      h# 0050 or ;
+: fDINT     h# 0060 or ;
+: fEINT     h# 0070 or ;
 : RET       h# 0080 or ;
 
 : d-1       h# 0003 or ;
@@ -75,6 +77,9 @@
 :: 2*        T2*                     alu ;
 :: depth     status T->N         d+1 alu ;
 :: exit      T  RET              r-1 alu ;
+
+:: dint      T     fDINT             alu ;
+:: eint      T     fEINT             alu ;
 
 \ Specials for HX8K
 

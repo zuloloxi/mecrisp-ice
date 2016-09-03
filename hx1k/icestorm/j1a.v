@@ -144,7 +144,6 @@ module top(input oscillator,
 `include "../build/ram.v"
 
   reg interrupt = 0;
-  reg interrupt_enable = 0;
 
   // ######   PROCESSOR   #####################################
 
@@ -159,7 +158,7 @@ module top(input oscillator,
     .mem_addr(mem_addr),
     .code_addr(code_addr),
     .insn_from_memory(insn),
-    .interrupt(interrupt)
+    .interrupt_request(interrupt)
   );
 
   // ######   TICKS   #########################################
@@ -170,12 +169,12 @@ module top(input oscillator,
 
   always @(posedge clk)
     if (io_wr & mem_addr[14])
-      ticks <= 0;
+      ticks <= dout;
     else
       ticks <= ticks_plus_1;
 
   always @(posedge clk) // Generate interrupt on ticks overflow
-    interrupt <= interrupt_enable & ticks_plus_1[16];
+    interrupt <= ticks_plus_1[16];
 
   // ######   PMOD   ##########################################
 
@@ -276,12 +275,12 @@ module top(input oscillator,
       0010  4   header 1 in
       0020  5   header 1 out    header 1 out
       0040  6   header 1 dir    header 1 dir
-      0080  7                   eint
+      0080  7                   
 
       0100  8   header 2 in
       0200  9   header 2 out    header 2 out
       0400  10  header 2 dir    header 2 dir
-      0800  11                  dint
+      0800  11                  
 
       1000  12  UART RX         UART TX
       2000  13  misc.in
@@ -321,11 +320,9 @@ module top(input oscillator,
 
     if (io_wr & mem_addr[5])  header1_out <= dout[7:0];
     if (io_wr & mem_addr[6])  header1_dir <= dout[7:0];
-    if (io_wr & mem_addr[7])  interrupt_enable <= 1;
 
     if (io_wr & mem_addr[9])  header2_out <= dout[7:0];
     if (io_wr & mem_addr[10]) header2_dir <= dout[7:0];
-    if (io_wr & mem_addr[11]) interrupt_enable <= 0;
 
   end
 

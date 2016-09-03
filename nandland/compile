@@ -1,0 +1,31 @@
+#!/bin/bash
+
+echo "Tidy up..."
+rm -f build/*
+
+echo "Compile nucleus..."
+gforth cross.fs instructionset.fs nucleus.fs
+echo ""
+
+echo "Compile Ice Cream Machine..."
+cd emulator
+fpc -XX icecreammachine
+cd ..
+
+echo "Compile additional Forth sources..."
+emulator/icecreammachine build/nucleus.hex build/iceimage.hex basisdefinitions.fs > build/log.txt
+
+echo "Generate initial data for RAM blocks..."
+python mkrom.py
+
+echo "Synthesize design..."
+yosys  -q -p "synth_ice40 -top top -blif build/j1a.blif" icestorm/j1a.v icestorm/uart.v icestorm/j1.v icestorm/stack2.v
+
+echo "Place and Route..."
+arachne-pnr -p icestorm/j1a.pcf build/j1a.blif -o build/j1a.txt -P vq100
+
+echo "Create Bitstream..."
+icepack build/j1a.txt build/j1a0.bin
+icemulti -p0 build/j1a0.bin > j1a.bin
+
+echo "Finished."

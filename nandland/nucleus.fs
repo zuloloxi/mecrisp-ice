@@ -6,18 +6,45 @@
 \  Low level definitions that are different for HX1K and HX8K
 \ -----------------------------------------------------------------------------
 
-\ Execute needs to be the first definition in HX8K as its address is hardwired.
-
 header execute : execute >r ;
 
-header-2-foldable lshift   :noname     lshift   ;
-header-2-foldable rshift   :noname     rshift   ;
-header-2-foldable arshift  :noname     arshift  ;
-header-1-foldable 1+       :noname     1+       ;
-header-1-foldable negate   : negate    invert 1+ ;
-header-1-foldable 1-       :noname     1-       ;
-header @                   : @         h# 4000 or >r ;
-header rdepth              :noname     rdepth   ;
+header-2-foldable lshift
+: lshift
+    begin
+        dup
+    while
+        swap 2* swap
+        d# 1 -
+    repeat
+    drop
+;
+
+header-2-foldable rshift
+: rshift
+    begin
+        dup
+    while
+        swap 2/ h# 7fff and swap
+        d# 1 -
+    repeat
+    drop
+;
+
+header-2-foldable arshift
+: arshift
+    begin
+        dup
+    while
+        swap 2/ swap
+        d# 1 -
+    repeat
+    drop
+;
+
+header-1-foldable 1+       : 1+        d# 1 + ;
+header-1-foldable negate   : negate    invert d# 1 + ;
+header-1-foldable 1-       : 1-        d# 1 - ;
+header @                   : @         h# 2000 or >r ;
 
 \ -----------------------------------------------------------------------------
 \  Low level definitions
@@ -134,17 +161,28 @@ header-2-foldable d2*
 \  Multiplication
 \ -----------------------------------------------------------------------------
 
+: mulstep ( ud u1 -- ud u1 )
+  DOUBLE DOUBLE
+  >r
+  >r d2* r>
+  dup d# 0 < if r@ swap >r d# 0 d+ r> then
+  2*
+  r>
+;
+
 header-2-foldable um*
 : um*  ( u1 u2 -- ud )
-    2dupum*high
-    >r
-    um*low
-    r>
+  >r >r d# 0. r> r>
+  mulstep mulstep mulstep mulstep
+  \ mulstep mulstep mulstep mulstep
+  \ mulstep mulstep mulstep mulstep
+  \ mulstep mulstep mulstep mulstep
+  drop drop
 ;
 
 header-2-foldable *
 : * ( u1 u2 -- u )
-    um*low
+    um* drop
 ;
 
 \ : ud* ( ud1 u -- ud2 ) \ ud2 is the product of ud1 and u
@@ -215,7 +253,10 @@ header emit
 header c@
 : c@
     dup @ swap
-    d# 1 and if d# 8 rshift then
+    d# 1 and if
+        2/ 2/ 2/ 2/
+        2/ 2/ 2/ 2/
+    then
     d# 255 and
 ;
 
@@ -574,17 +615,18 @@ header c,
 header compile,
 : compile,
 
-  \ Literal @ --> Address for High-Call + Execute saves cycles
+  \ Literal @ --> High-Call
   fineforoptimisation @i  \ Check if optimisation is allowable
   if
     ['] @ over=           \ Check if @ is to be compiled
     if ( call-target )
       prev isliteral      \ Check if the previous opcode has been a literal
       if
-         drop
-         h# 4000 prev@xor \ Add $4000 to address to make this a high call
+         h# A000 prev@xor \ Add $2000 to address and remove MSB which denotes literal opcodes for 2/
+         2/
+         h# 4000 or       \ Make call opcode
          prev _!
-         h# 4006 jmp w,   \ A call to execute, which is close to the beginning of the nucleus. We have no constant folding here, so do not use ['] and prepare the opcode.
+         jmp tdrop
       then
     then
   then
@@ -818,7 +860,7 @@ header-imm recurse
 : (loopnext)  ( -- ?  R: limit index-limit -- limit index+1-limit )
     r>         ( addr )
     r>         ( addr index-lim )
-    1+         ( addr index+1-lim )
+    d# 1 +     ( addr index+1-lim )
     dup >r     ( addr index+1-lim )
     swap >r    ( index+1-lim )
     d# 0 =
@@ -1226,7 +1268,6 @@ header evaluate
 
 header quit
 : quit
-    begin rdepth while rdrop repeat \ Clear the return stack
     begin depth while drop repeat \ Clear the stack
     cr
     decimal
@@ -1286,10 +1327,18 @@ header spi>
 
 header load
 : load ( sector -- )
-  h# 03 >spi \ Read command
-        >spi  \ Sector number
-  h# 00 >spi   \ Address high
-  h# 00 >spi    \ Address low
+
+  h# AB >spi  \ Release from Deep Power Down Mode
+  h# 00 >spi
+  h# 00 >spi
+  h# 00 >spi
+  spi> drop   \ Read Signature
+  idle
+     
+        h# 03 >spi \ Read command
+       dup 2/ >spi  \ Sector number
+  d# 7 lshift >spi   \ Address high
+        h# 00 >spi    \ Address low
 
   spi> spi> d# 8 lshift or
 
@@ -1300,7 +1349,7 @@ header load
     begin
       spi> spi> d# 8 lshift or over !
       d# 2 +
-      dup h# 4000 =
+      dup h# 2000 =
     until
 
   then
@@ -1348,8 +1397,8 @@ header eint? :noname ( -- ? ) r@ d# 1 and 0<> ;
     [char] 8 emit
     cr
 
-    d# 3 load \ Try to load image from sector 3 if available. Bitstream is in sectors 0, 1, 2.
-    \ quit
+    d# 1 load \ Try to load image from sector 1 if available.
+  \ quit
 ;
 
 meta

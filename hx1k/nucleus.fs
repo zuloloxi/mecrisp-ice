@@ -1359,8 +1359,9 @@ header load
 \  Interrupts
 \ -----------------------------------------------------------------------------
 
-header eint : eint ( -- ) h# 0 h# 0080 io! ;
-header dint : dint ( -- ) h# 0 h# 0800 io! ;
+header eint  :noname ( -- )   eint ;
+header dint  :noname ( -- )   dint ;
+header eint? :noname ( -- ? ) r@ d# 1 and 0<> ;
 
 \ -----------------------------------------------------------------------------
 \  Boot here
@@ -1385,7 +1386,7 @@ header dint : dint ( -- ) h# 0 h# 0800 io! ;
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 7 emit
+    [char] 8 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.

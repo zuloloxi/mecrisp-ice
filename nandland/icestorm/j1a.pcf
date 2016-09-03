@@ -1,0 +1,57 @@
+
+set_io oscillator 15
+
+set_io D1 56
+set_io D2 57
+set_io D3 59
+set_io D4 60
+
+set_io S1 53
+set_io S2 51
+set_io S3 54
+set_io S4 52
+
+set_io TXD 74
+set_io RXD 73
+
+set_io MOSI 45
+set_io MISO 46
+set_io SCK  48
+set_io CS   49
+
+set_io PORTA0 65
+set_io PORTA1 64
+set_io PORTA2 63
+set_io PORTA3 62
+set_io PORTA4 78
+set_io PORTA5 79
+set_io PORTA6 80
+set_io PORTA7 81
+
+set_io Segment1A 3
+set_io Segment1B 4
+set_io Segment1C 93
+set_io Segment1D 91
+set_io Segment1E 90
+set_io Segment1F 1
+set_io Segment1G 2
+set_io Segment2A 100
+set_io Segment2B 99
+set_io Segment2C 97
+set_io Segment2D 95
+set_io Segment2E 94
+set_io Segment2F 8
+set_io Segment2G 96
+
+set_io VGA_HSync 26
+set_io VGA_VSync 27
+
+set_io VGA_Red_0 36
+set_io VGA_Red_1 37
+set_io VGA_Red_2 40
+set_io VGA_Grn_0 29
+set_io VGA_Grn_1 30
+set_io VGA_Grn_2 33
+set_io VGA_Blu_0 28
+set_io VGA_Blu_1 41
+set_io VGA_Blu_2 42

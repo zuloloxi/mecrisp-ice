@@ -273,14 +273,14 @@ allot here constant BUF
 \     0004  2   PMOD dir        PMOD dir
 \     0008  3   misc.out        misc.out
 \
-\     0010  4   header 1 in
-\     0020  5   header 1 out    header 1 out
-\     0040  6   header 1 dir    header 1 dir
-\     0080  7
+\     0010  4   
+\     0020  5   
+\     0040  6   
+\     0080  7   Segments        Segments
 \
-\     0100  8   header 2 in
-\     0200  9   header 2 out    header 2 out
-\     0400  10  header 2 dir    header 2 dir
+\     0100  8 
+\     0200  9 
+\     0400  10
 \     0800  11
 \
 \     1000  12  UART RX         UART TX
@@ -296,24 +296,20 @@ allot here constant BUF
 \    0001    0  SPI CS          UART Ready to Transmit
 \    0002    1  SPI MOSI        UART Character received
 \    0004    2  SPI SCK         SPI MISO
-\    0008    3  IrDA-TXD        IrDA-RXD
-\    0010    4  IrDA-Sleep      RTS
-\    0020    5  CTS             Random
-\    0040    6  Green LED
-\    0080    7  Red LED
-\    0100    8  Red LED
-\    0200    9  Red LED
-\    0400   10  Red LED
+\    0008    3  Red LED 1       Random
+\    0010    4  Red LED 2       S1
+\    0020    5  Red LED 3       S2
+\    0040    6  Red LED 4       S3
 \
 
-: ms   ( u -- ) 0 do 4000 0 do loop loop ; \ 12 cycles per loop run. 1 ms * 48 MHz / 12 = 4000
-: leds ( x -- ) 6 lshift 8 io@ $3f and or 8 io! ;
+: ms   ( u -- ) 0 do 2083 0 do loop loop ; \ 12 cycles per loop run. 1 ms * 25 MHz / 12 = 2083
+: leds ( x -- ) 3 lshift 8 io@ 7 and or 8 io! ;
 
 : now   ( -- ) 0 $4000 io! ;
 : ticks ( -- u ) $4000 io@ ;
 : delay ( u -- ) begin dup ticks u< until drop ;
 
-: randombit ( -- 0 | 1 ) $2000 io@ $20 and 5 rshift ;
+: randombit ( -- 0 | 1 ) $2000 io@ 8 and 3 rshift ;
 : random ( -- x ) 0  16 0 do 2* randombit or 100 0 do loop loop ;
 
 $608C $1FFE ! \ Location $1FFE is an interrupt vector ! Place ALU exit opcode here.
@@ -322,10 +318,16 @@ $608C $1FFE ! \ Location $1FFE is an interrupt vector ! Place ALU exit opcode he
 
 \ Save memory image to SPI Flash
 
+\ Four sectors only on Nandland Go:
+\ 0: Bitstream
+\ 1: Autoload
+\ 2:  Free
+\ 3:  Free
+
 : waitspi ( -- )
   begin
-    $70 >spi \ Read Flag status register
-    spi> $80 and
+    $05 >spi \ Read Flag status register
+    spi> $01 and 0= \ WIP: Write in Progress.
     idle
   until
 ;
@@ -336,35 +338,38 @@ $608C $1FFE ! \ Location $1FFE is an interrupt vector ! Place ALU exit opcode he
 ;
 
 : erase ( sector -- )
+  3 and  \ Four sectors available only
   ?dup if \ Never overwrite bitstream !
     spiwe
-    $D8 >spi \ Sector erase
-        >spi  \ Sector number
-    $00 >spi   \ Address high
-    $00 >spi    \ Address low
+     $D8 >spi \ Sector erase
+  dup 2/ >spi  \ Sector number
+7 lshift >spi   \ Address high
+     $00 >spi    \ Address low
     idle
     waitspi
   then
 ;
 
 : save ( sector -- )
+  3 and  \ Four sectors available only
   ?dup if \ Never overwrite bitstream !
 
     dup erase
-    0      \ 8 kb in 256 byte pages
-    begin
+    
+    0      \ 8 kb in 128 byte pages
+    begin ( sector address )
       spiwe
 
-      $02 >spi \ Page program, 256 Bytes
-     over >spi  \ Sector number
-     dup
- 8 rshift >spi   \ Address high
-      $00 >spi    \ Address low
+      $02 >spi \ Page program, 128 Bytes
+                  
+      over 2/                         >spi  \ Sector number     
+      over 7 lshift over 8 rshift or  >spi   \ Address high
+      dup                             >spi    \ Address low
 
       begin
         dup c@ >spi
         1+
-        dup $FF and 0=
+        dup $7F and 0=
       until
 
       idle
