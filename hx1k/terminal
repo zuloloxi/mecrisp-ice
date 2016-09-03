@@ -8,4 +8,4 @@ case $1 in
 	;;
 esac
 
-picocom -b 115200 /dev/ttyUSB$n --send-cmd "ascii-xfr -s -l 30 -n" --omap crlf,delbs --imap igncr,lfcrlf
+picocom -b 115200 /dev/ttyUSB$n --imap lfcrlf,crcrlf --omap delbs,crlf --send-cmd "ascii-xfr -s -l 30 -n"

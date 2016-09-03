@@ -46,15 +46,14 @@ new
 
 18 constant pulsesforsync \ Number of bits in a cell plus two
 
-variable shinecounter
-variable pulsesreceived
-variable measurementcounter
-variable lightpattern
-variable outgoingbits
-variable incomingbits
+8 variable shinecounter
+0 variable pulsesreceived
+0 variable measurementcounter
+0 variable lightpattern
+0 variable outgoingbits
+0 variable incomingbits
 
-variable brightness ( Bright or dark ? )
-true brightness !
+true variable brightness ( Bright or dark ? )
 
 : msb? ( x -- x Flag ) dup 0< ;
 

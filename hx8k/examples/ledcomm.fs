@@ -1,4 +1,6 @@
 
+new
+
 \ Ledcomm for Icestick
 \ Matthias Koch, 2015, GPL3
 
@@ -12,11 +14,11 @@
 : Disconnect ( -- ) ."  (Down) " cr 0 leds ;
 
 \ -----------------------------------------------------------------------------
-\ Connect a clear red high-brightness LED with both pins to the Pmod-Connector
+\ Connect a clear red high-brightness LED with anode to C16 and cathode to D16
 \ -----------------------------------------------------------------------------
 
  1 constant Anode
-16 constant Kathode
+ 2 constant Kathode
 
 \ Routines to drive the LED
 
@@ -44,15 +46,14 @@
 
 18 constant pulsesforsync \ Number of bits in a cell plus two
 
-variable shinecounter
-variable pulsesreceived
-variable measurementcounter
-variable lightpattern
-variable outgoingbits
-variable incomingbits
+8 variable shinecounter
+0 variable pulsesreceived
+0 variable measurementcounter
+0 variable lightpattern
+0 variable outgoingbits
+0 variable incomingbits
 
-variable brightness ( Bright or dark ? )
-true brightness !
+true variable brightness ( Bright or dark ? )
 
 : msb? ( x -- x Flag ) dup 0< ;
 
@@ -171,5 +172,5 @@ true brightness !
 
 : ledcomm ( -- )
   ledcomm-init
-  begin now ledcomm-tick 244 12 * delay ( 244 us @ 12 MHz inclusive algorithm ) again
+  begin now ledcomm-tick 244 36 * delay ( 244 us @ 36 MHz inclusive algorithm ) again
 ;

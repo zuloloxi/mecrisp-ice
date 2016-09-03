@@ -18,7 +18,7 @@ variable lst        \ .lst output file handle
 
 131072 allocate throw constant tflash       \ bytes, target flash
 131072 allocate throw constant _tbranches   \ branch targets, cells
-tflash      31072 erase
+tflash      131072 erase
 _tbranches  131072 erase
 : tbranches cells _tbranches + ;
 
@@ -89,7 +89,7 @@ variable link 0 link !
 :: header
     twalign there
     \ cr ." link is " link @ .
-    link @ tw,
+    link @ 2 lshift tw,
     link !
     bl parse
     \ cr ." at " there . 2dup type tcp @ .
@@ -102,10 +102,10 @@ variable link 0 link !
 
 :: header-imm
     twalign there
-    link @ 1+ tw,
+    link @ 2 lshift tw,
     link !
     bl parse
-    dup tc,
+    dup 128 or tc,
     bounds do
         i c@ tc,
     loop
@@ -114,10 +114,10 @@ variable link 0 link !
 
 :: header-imm-0-foldable
     twalign there
-    link @ 1+ 1 13 lshift or tw,
+    link @ 2 lshift 1 or tw,
     link !
     bl parse
-    dup tc,
+    dup 128 or tc,
     bounds do
         i c@ tc,
     loop
@@ -126,7 +126,7 @@ variable link 0 link !
 
 :: header-0-foldable
     twalign there
-    link @ 1 13 lshift or tw,
+    link @ 2 lshift 1 or tw,
     link !
     bl parse
     dup tc,
@@ -138,7 +138,7 @@ variable link 0 link !
 
 :: header-1-foldable
     twalign there
-    link @ 2 13 lshift or tw,
+    link @ 2 lshift 2 or tw,
     link !
     bl parse
     dup tc,
@@ -150,7 +150,7 @@ variable link 0 link !
 
 :: header-2-foldable
     twalign there
-    link @ 3 13 lshift or tw,
+    link @ 2 lshift 3 or tw,
     link !
     bl parse
     dup tc,
@@ -162,7 +162,7 @@ variable link 0 link !
 
 :: header-3-foldable
     twalign there
-    link @ 4 13 lshift or tw,
+    link @ 2 lshift 4 or tw,
     link !
     bl parse
     dup tc,
@@ -174,7 +174,7 @@ variable link 0 link !
 
 :: header-4-foldable
     twalign there
-    link @ 5 13 lshift or tw,
+    link @ 2 lshift 5 or tw,
     link !
     bl parse
     dup tc,

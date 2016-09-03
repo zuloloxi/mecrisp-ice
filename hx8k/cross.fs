@@ -16,10 +16,10 @@ variable lst        \ .lst output file handle
 : tcells    tcell * ;
 : tcell+    tcell + ;
 
-131072 allocate throw constant tflash       \ bytes, target flash
-131072 allocate throw constant _tbranches   \ branch targets, cells
-tflash      31072 erase
-_tbranches  131072 erase
+131072 2* allocate throw constant tflash       \ bytes, target flash
+131072 2* allocate throw constant _tbranches   \ branch targets, cells
+tflash      131072 2* erase
+_tbranches  131072 2* erase
 : tbranches cells _tbranches + ;
 
 variable tdp    0 tdp !         \ Data pointer
@@ -89,7 +89,7 @@ variable link 0 link !
 :: header
     twalign there
     \ cr ." link is " link @ .
-    link @ tw,
+    link @ 2 lshift tw,
     link !
     bl parse
     \ cr ." at " there . 2dup type tcp @ .
@@ -102,10 +102,10 @@ variable link 0 link !
 
 :: header-imm
     twalign there
-    link @ 1+ tw,
+    link @ 2 lshift tw,
     link !
     bl parse
-    dup tc,
+    dup 128 or tc,
     bounds do
         i c@ tc,
     loop
@@ -114,10 +114,10 @@ variable link 0 link !
 
 :: header-imm-0-foldable
     twalign there
-    link @ 1+ 1 13 lshift or tw,
+    link @ 2 lshift 1 or tw,
     link !
     bl parse
-    dup tc,
+    dup 128 or tc,
     bounds do
         i c@ tc,
     loop
@@ -126,7 +126,7 @@ variable link 0 link !
 
 :: header-0-foldable
     twalign there
-    link @ 1 13 lshift or tw,
+    link @ 2 lshift 1 or tw,
     link !
     bl parse
     dup tc,
@@ -138,7 +138,7 @@ variable link 0 link !
 
 :: header-1-foldable
     twalign there
-    link @ 2 13 lshift or tw,
+    link @ 2 lshift 2 or tw,
     link !
     bl parse
     dup tc,
@@ -150,7 +150,7 @@ variable link 0 link !
 
 :: header-2-foldable
     twalign there
-    link @ 3 13 lshift or tw,
+    link @ 2 lshift 3 or tw,
     link !
     bl parse
     dup tc,
@@ -162,7 +162,7 @@ variable link 0 link !
 
 :: header-3-foldable
     twalign there
-    link @ 4 13 lshift or tw,
+    link @ 2 lshift 4 or tw,
     link !
     bl parse
     dup tc,
@@ -174,7 +174,7 @@ variable link 0 link !
 
 :: header-4-foldable
     twalign there
-    link @ 5 13 lshift or tw,
+    link @ 2 lshift 5 or tw,
     link !
     bl parse
     dup tc,
@@ -279,7 +279,8 @@ variable wordstart
 \
 :: @i
     tdp @ 2 - >r
-    r@ tw@ $2000 + 2/ $4000 or r> tw!
+    r@ tw@ $4000 or r> tw!
+    $000C 1 rshift $4000 or tw, \ A call to execute, which is close to the beginning of the nucleus. We cannot tick target definitions at this stage.
 ;
 
 ( Switching between target and meta          JCB 19:08 05/02/12)
@@ -437,7 +438,7 @@ decimal
     s" hex" out-suffix to file
 
     hex
-    4096 0 do
+    4096 2* 0 do
         tflash i 2* + w@
         s>d <# # # # # #> file write-line throw
     loop

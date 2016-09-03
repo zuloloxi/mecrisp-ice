@@ -1,4 +1,4 @@
-code = list(open("build/nuc.hex"))
+code = list(open("build/iceimage.hex"))
 
 template = """
   SB_RAM2048x2 #(
@@ -44,18 +44,21 @@ def genram(hh, d, **args):
         hh.write(template.format(i = i, lo = 2*i, hi = 2*i + 1, init = init,
                                  **args))
 code = [int(v,16) for v in code]
-bn0 = code[:2048]
-bn1 = code[2048:]
+bn0 = code[0*2048:1*2048]
+bn1 = code[1*2048:2*2048]
+bn2 = code[2*2048:3*2048]
+bn3 = code[3*2048:4*2048]
+
 hh = open("build/ram.v", "w")
 hh.write("""
-    wire [15:0] insn0, insn1;
+    wire [15:0] insn0, insn1, insn2, insn3;
     wire [15:0] insn;
 """)
 genram(hh, bn0,
        kind = "bn0",
        raddr = "code_addr[10:0]",
        waddr = "mem_addr[11:1]",
-       we = "mem_wr & !mem_addr[12]",
+       we = "mem_wr & !mem_addr[12] & !mem_addr[13]",
        din = "insn0",
        dout = "dout"
        )
@@ -63,15 +66,41 @@ genram(hh, bn1,
        kind = "bn1",
        raddr = "code_addr[10:0]",
        waddr = "mem_addr[11:1]",
-       we = "mem_wr & mem_addr[12]",
+       we = "mem_wr & mem_addr[12]  & !mem_addr[13]",
        din = "insn1",
        dout = "dout"
        )
+genram(hh, bn2,
+       kind = "bn2",
+       raddr = "code_addr[10:0]",
+       waddr = "mem_addr[11:1]",
+       we = "mem_wr & !mem_addr[12] & mem_addr[13]",
+       din = "insn2",
+       dout = "dout"
+       )
+genram(hh, bn3,
+       kind = "bn3",
+       raddr = "code_addr[10:0]",
+       waddr = "mem_addr[11:1]",
+       we = "mem_wr & mem_addr[12]  & mem_addr[13]",
+       din = "insn3",
+       dout = "dout"
+       )
 hh.write("""
-    reg c11;
-    always @(posedge clk) c11 <= code_addr[11];
-    wire [15:0] cm = {16{c11}};
-    assign insn = (cm & insn1) | (~cm & insn0);
-    // assign insn = c11 ? insn1 : insn0;
+    reg c11, c12;
+    always @(posedge clk)
+    begin
+      {c12, c11} <= {code_addr[12], code_addr[11]};
+    end
+
+    always @*
+    begin
+      casez ({c12, c11}) // Depending on memory address, select different RAM blocks.
+      2'b00: insn = insn0;
+      2'b01: insn = insn1;
+      2'b10: insn = insn2;
+      2'b11: insn = insn3;
+      endcase
+    end
 """)
 hh.close()

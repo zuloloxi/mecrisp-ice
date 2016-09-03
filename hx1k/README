@@ -41,6 +41,8 @@ What you need:
 * A Lattice Icestick with an iCE40-HX1K FPGA
     http://www.latticesemi.com/icestick
 
+* Or a Lattice HX8K breakout board with an iCE40-HX8K FPGA    
+
 * The Iceprog tool to flash the included binary
     http://www.clifford.at/icestorm/
 
@@ -48,13 +50,33 @@ What you need:
 
 -------------------------------------------------------------------------------
 
-Basic usage:
+Which board for you ?
+
+If you just wish to play with a stack processor,
+if you have small ideas,
+if you desire to have IrDA communication,
+if you wish a cheap, cool looking board,
+if you are fine without tinkering with additional logic
+
+  --> HX1K Icestick is your choice.
+  
+If you have large ideas in Forth,
+if you need a lot of IO pins,
+if you wish to wire in additional peripherals, opcodes or whatever you imagine,
+if you love to have single cycle multiplier and barrel shifters
+
+  --> HX8K breakout board will give you a nice time.  
+
+-------------------------------------------------------------------------------
+
+Basic usage, same for HX1K and HX8K:
 
   Flash the binary:
   iceprog -b j1a.bin
 
   Open a terminal:
-  picocom -b 115200 /dev/ttyUSB1 --send-cmd "ascii-xfr -s -l 30 -n"
+  picocom -b 115200 /dev/ttyUSB$n --imap lfcrlf,crcrlf --omap delbs,crlf --send-cmd "ascii-xfr -s -l 30 -n"
+
   Toggle DTR line to Reset by pressing Crtl+A Ctrl+T Crtl+A Ctrl+T
 
   You should get a welcome message.
@@ -156,13 +178,68 @@ The UART data register is for both incoming and outgoing data,
 a read from it will clear the "Character received" flag
 and you should only write to it when "Ready to Transmit" is set.
 
-Ticks contains a 16 bit cycle counter that counts up with 12 MHz.
+Ticks contains a 16 bit cycle counter that counts up with 48 MHz (HX8K: 36 MHz)
 Any write to it clears it and sets its value back to zero.
 
-Memory location $1FFE is an interrupt vector for the ticks counter overflow.
+Memory location $1FFE (HX8K: $3FFE) is an interrupt vector for the ticks counter overflow.
 You can place an opcode there, perhaps ALU Exit ($608C) or a JMP to a handler.
 Interrupts can be enabled with eint and disabled with dint.
 
+-------------------------------------------------------------------------------
+
+Notes on HX8K:
+--------------
+
+This feels very similiar to Mecrisp-Ice on HX1K, just with a few differences:
+
+  + Double amount of memory: 16 kb instead of 8 kb
+  + Double stack depth: 32 elements each instead of 16
+  + Barrel shifter for single cycle lshift rshift arshift
+  + Single cycle multiplication
+  + Fast opcodes for 1+ and 1-
+  + rdepth
+  + 8 LEDs instead of 5
+  + Lots of gates free for experiments
+  - 36 MHz only
+  - No IrDA
+  - Variable @ needs 2 instructions and 5 cycles instead of 1 instruction and 2 cycles  
+
+The peripheral map is the same, but the IN, OUT and DIR registers
+are up to 16 bits wide, with the following connections:
+
+ $0001 Port A IN     $0010 Port B IN     $0100 Port C IN 
+ $0002 Port A OUT    $0020 Port B OUT    $0200 Port C OUT
+ $0004 Port A DIR    $0040 Port B DIR    $0400 Port C DIR
+
+ 
+                     Red LEDs
+                     76543210
+  1.2V 3.3V   oo                 oo   oo
+  1.2V B13    oo                 oo   oo
+  A12  B12    oo     ________    oo   oo
+  GND  GND    oo    |        |   oo   oo
+  A11  B11    oo    |  FPGA  |   oo   oo
+  A10  B10    oo    |        |   oo   oo
+  A9   B9     oo    |________|   oo   oo
+  GND  GND    oo                 oo   oo
+  A8   B8     oo                 oo   oo
+  A7   B7     oo                 oo   oo
+  A6   B6     oo  Jumper config: oo   oo
+  GND  GND    oo                 oo   oo
+  A5   B5     oo     |     ||    oo   oo
+  A4   B4     oo                 oo   oo
+  A3   B3     oo        Green    oo   oo
+  GND  GND    oo        LED      oo   oo
+  A2   B2     oo     FT          oo   oo
+  A1   B1     oo     DI          oo   oo
+  A0   B0     oo                 oo   oo
+  GND  GND    oo     [USB]       oo   oo
+                     [USB]
+  
+
+  Port C is currently unconnected, you can wire the bits as you wish
+  in the constraints PCF file.
+  
 -------------------------------------------------------------------------------
 
 Special features included in Mecrisp-Ice:
@@ -190,6 +267,9 @@ Nothing is executed if init contains a zero, which is the default.
 If you are not sure if it will work properly, save to any other sector
 and load manually. The init mechanism works the same on all sectors.
 
+On HX8K: Sectors 0, 1 and 3 contain the bitstream.
+         Sector 3 will be loaded automatically if available.
+
 -----------------------------------------
 
 For your convenience, some introspection features are preloaded for default.
@@ -210,14 +290,16 @@ Inline optimisations and constant folding are included !
 
 Main differences to Mecrisp and Mecrisp-Stellaris:
 
-Unlike Mecrisp and Mecrisp-Stellaris, this is an ANS Forth running completely
+Unlike Mecrisp and Mecrisp-Stellaris, this is running completely
 in RAM memory. So there is no need for special memory handling !
 
-VARIABLEs are uninitialised, you can use CREATE with DOES> and
-if you need a buffer, just CREATE ... ALLOT it.
+You can use CREATE with DOES> and if you need a buffer,
+just CREATE ... ALLOT it.
 
 By the way: If you save a memory image, the last contents of the variables
-are saved during the process and reloaded with the image.
+are saved during the process and reloaded with the image. Variables are
+initialised, but there is no logic to reinitialise them on Reset to the
+values assigned at compilation.
 
 -------------------------------------------------------------------------------
 
@@ -260,6 +342,7 @@ View it with fixed-width font !
 Single-Jugglers:
 
         depth           ( -- +n ) Gives number of single-cell stack items.
+        rdepth          ( -- +n ) HX8K only: Number of items on return stack.
         nip             ( x1 x2 -- x2 )
         drop            ( x -- )
         rot             ( x1 x2 x3 -- x2 x3 x1 )
@@ -395,7 +478,7 @@ Double-Jugglers:        They perform the same for double numbers.
         fill            ( c-addr u c ) Fill u Bytes of Memory with value c
 
         constant  name  ( u|n -- )  Makes a single constant.
-        variable  name  ( -- )      Makes an uninitialized single variable
+        variable  name  ( u|n -- )  Makes an initialized single variable
 
         2@              ( a-addr -- ud|d ) Fetches double number from memory
         2!              ( ud|d a-addr -- ) Stores double number in memory

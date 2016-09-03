@@ -62,10 +62,16 @@ module SB_RAM2048x2(
 
 endmodule
 
-module top(input oscillator, output D1, output D2, output D3, output D4, output D5,
+module top(input oscillator,
+
+           output D1, 
+           output D2, 
+           output D3, 
+           output D4, 
+           output D5,
 
            output TXD,        // UART TX
-           input RXD,         // UART RX
+           input  RXD,        // UART RX
 
            output CTS,        // UART CTS - PIO3_05
            input  RTS,        // UART RTS - PIO3_06

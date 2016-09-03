@@ -62,58 +62,102 @@ module SB_RAM2048x2(
 
 endmodule
 
-module top(input oscillator, output D1, output D2, output D3, output D4, output D5,
+module top(input oscillator,
+
+           output D1, 
+           output D2, 
+           output D3, 
+           output D4, 
+           output D5, 
+           output D6, 
+           output D7, 
+           output D8,
 
            output TXD,        // UART TX
-           input RXD,         // UART RX
+           input  RXD,        // UART RX
 
            output CTS,        // UART CTS - PIO3_05
            input  RTS,        // UART RTS - PIO3_06
 
-           output PIOS_00,    // flash SCK
-           input PIOS_01,     // flash MISO
-           output PIOS_02,    // flash MOSI
-           output PIOS_03,    // flash CS
-
-           inout PIO1_02,    // PMOD 1
-           inout PIO1_03,    // PMOD 2
-           inout PIO1_04,    // PMOD 3
-           inout PIO1_05,    // PMOD 4
-           inout PIO1_06,    // PMOD 5
-           inout PIO1_07,    // PMOD 6
-           inout PIO1_08,    // PMOD 7
-           inout PIO1_09,    // PMOD 8
+           output PIOS_00,    // Flash SCK
+           input PIOS_01,     // Flash MISO
+           output PIOS_02,    // Flash MOSI
+           output PIOS_03,    // Flash CS
 
            output PIO1_18,    // IR TXD
            input  PIO1_19,    // IR RXD
            output PIO1_20,    // IR SD
 
-           inout PIO0_02,    // Header 1
-           inout PIO0_03,    // Header 2
-           inout PIO0_04,    // Header 3
-           inout PIO0_05,    // Header 4
-           inout PIO0_06,    // Header 5
-           inout PIO0_07,    // Header 6
-           inout PIO0_08,    // Header 7
-           inout PIO0_09,    // Header 8
-
-           inout PIO2_10,    // Header 1
-           inout PIO2_11,    // Header 2
-           inout PIO2_12,    // Header 3
-           inout PIO2_13,    // Header 4
-           inout PIO2_14,    // Header 5
-           inout PIO2_15,    // Header 6
-           inout PIO2_16,    // Header 7
-           inout PIO2_17,    // Header 8
-
+           inout PORTA0,
+           inout PORTA1,
+           inout PORTA2,
+           inout PORTA3,
+           inout PORTA4,
+           inout PORTA5,
+           inout PORTA6,
+           inout PORTA7,
+           inout PORTA8,
+           inout PORTA9,
+           inout PORTA10,
+           inout PORTA11,
+           inout PORTA12,
+           inout PORTA13,
+           inout PORTA14,
+           inout PORTA15,
+           
+           inout PORTB0,
+           inout PORTB1,
+           inout PORTB2,
+           inout PORTB3,
+           inout PORTB4,
+           inout PORTB5,
+           inout PORTB6,
+           inout PORTB7,
+           inout PORTB8,
+           inout PORTB9,
+           inout PORTB10,
+           inout PORTB11,
+           inout PORTB12,
+           inout PORTB13,
+           inout PORTB14,
+           inout PORTB15,
+           
+           inout PORTC0,
+           inout PORTC1,
+           inout PORTC2,
+           inout PORTC3,
+           inout PORTC4,
+           inout PORTC5,
+           inout PORTC6,
+           inout PORTC7,
+           inout PORTC8,
+           inout PORTC9,
+           inout PORTC10,
+           inout PORTC11,
+           inout PORTC12,
+           inout PORTC13,
+           inout PORTC14,
+           inout PORTC15,                      
+           
            input resetq,
 );
 
-  localparam MHZ = 12;
-
   wire clk;
-  SB_GB clockbuffer ( .USER_SIGNAL_TO_GLOBAL_BUFFER (oscillator), .GLOBAL_BUFFER_OUTPUT (clk) );
-  // SB_GB_IO clockbuffer ( .PACKAGE_PIN (oscillator), .GLOBAL_BUFFER_OUTPUT (clk) );  // Waits for support in Arachne-PNR
+
+  SB_PLL40_CORE #(.FEEDBACK_PATH("SIMPLE"),
+                  .PLLOUT_SELECT("GENCLK"),
+                  .DIVR(4'b0000),
+                  .DIVF(7'd2),
+                  .DIVQ(3'b000),
+                  .FILTER_RANGE(3'b001),
+                 ) uut (
+                         .REFERENCECLK(oscillator),
+                         .PLLOUTCORE(clk),
+                         //.PLLOUTGLOBAL(clk),
+                         //.LOCK(D5),
+                         .RESETB(1'b1),
+                         .BYPASS(1'b0)
+                        );
 
   wire io_rd, io_wr;
   wire [15:0] mem_addr;
@@ -121,9 +165,15 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
   wire [15:0] dout;
   wire [15:0] io_din;
   wire [12:0] code_addr;
+
   reg unlocked = 0;
 
 `include "../build/ram.v"
+
+  reg interrupt = 0;
+  reg interrupt_enable = 0;
+
+  // ######   PROCESSOR   #####################################
 
   j1 _j1(
     .clk(clk),
@@ -135,81 +185,101 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
     .io_din(io_din),
     .mem_addr(mem_addr),
     .code_addr(code_addr),
-    .insn(insn));
-
-  // ######   IO SIGNALS   ####################################
-
-  reg io_wr_, io_rd_;
-  reg [15:0] dout_;
-  reg [15:0] io_addr_;
-
-  always @(posedge clk) begin
-    {io_rd_, io_wr_, dout_} <= {io_rd, io_wr, dout};
-    if (io_rd | io_wr)
-      io_addr_ <= mem_addr;
-  end
+    .insn_from_memory(insn),
+    .interrupt(interrupt)
+  );
 
   // ######   TICKS   #########################################
 
   reg [15:0] ticks;
 
+  wire [16:0] ticks_plus_1 = ticks + 1;
+
   always @(posedge clk)
-    if (io_wr_ & io_addr_[14])
+    if (io_wr & mem_addr[14])
       ticks <= 0;
     else
-      ticks <= ticks + 1;
+      ticks <= ticks_plus_1;
 
-  // ######   PMOD   ##########################################
+  always @(posedge clk) // Generate interrupt on ticks overflow
+    interrupt <= interrupt_enable & ticks_plus_1[16];
 
-  reg [7:0] pmod_dir;   // 1:output, 0:input
-  reg [7:0] pmod_out;
-  wire [7:0] pmod_in;
+  // ######   PORTA   ###########################################
 
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io0 (.PACKAGE_PIN(PIO1_02), .D_OUT_0(pmod_out[0]), .D_IN_0(pmod_in[0]), .OUTPUT_ENABLE(pmod_dir[0]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io1 (.PACKAGE_PIN(PIO1_03), .D_OUT_0(pmod_out[1]), .D_IN_0(pmod_in[1]), .OUTPUT_ENABLE(pmod_dir[1]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io2 (.PACKAGE_PIN(PIO1_04), .D_OUT_0(pmod_out[2]), .D_IN_0(pmod_in[2]), .OUTPUT_ENABLE(pmod_dir[2]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io3 (.PACKAGE_PIN(PIO1_05), .D_OUT_0(pmod_out[3]), .D_IN_0(pmod_in[3]), .OUTPUT_ENABLE(pmod_dir[3]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io4 (.PACKAGE_PIN(PIO1_06), .D_OUT_0(pmod_out[4]), .D_IN_0(pmod_in[4]), .OUTPUT_ENABLE(pmod_dir[4]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io5 (.PACKAGE_PIN(PIO1_07), .D_OUT_0(pmod_out[5]), .D_IN_0(pmod_in[5]), .OUTPUT_ENABLE(pmod_dir[5]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io6 (.PACKAGE_PIN(PIO1_08), .D_OUT_0(pmod_out[6]), .D_IN_0(pmod_in[6]), .OUTPUT_ENABLE(pmod_dir[6]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) io7 (.PACKAGE_PIN(PIO1_09), .D_OUT_0(pmod_out[7]), .D_IN_0(pmod_in[7]), .OUTPUT_ENABLE(pmod_dir[7]));
+  reg  [15:0] porta_dir;   // 1:output, 0:input
+  reg  [15:0] porta_out;
+  wire [15:0] porta_in;
 
-  // ######   Header   ##########################################
-  // PIO0  2-9
-  // PIO2  10-17
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa0  (.PACKAGE_PIN(PORTA0),  .D_OUT_0(porta_out[0]),  .D_IN_0(porta_in[0]),  .OUTPUT_ENABLE(porta_dir[0]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa1  (.PACKAGE_PIN(PORTA1),  .D_OUT_0(porta_out[1]),  .D_IN_0(porta_in[1]),  .OUTPUT_ENABLE(porta_dir[1]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa2  (.PACKAGE_PIN(PORTA2),  .D_OUT_0(porta_out[2]),  .D_IN_0(porta_in[2]),  .OUTPUT_ENABLE(porta_dir[2]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa3  (.PACKAGE_PIN(PORTA3),  .D_OUT_0(porta_out[3]),  .D_IN_0(porta_in[3]),  .OUTPUT_ENABLE(porta_dir[3]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa4  (.PACKAGE_PIN(PORTA4),  .D_OUT_0(porta_out[4]),  .D_IN_0(porta_in[4]),  .OUTPUT_ENABLE(porta_dir[4]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa5  (.PACKAGE_PIN(PORTA5),  .D_OUT_0(porta_out[5]),  .D_IN_0(porta_in[5]),  .OUTPUT_ENABLE(porta_dir[5]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa6  (.PACKAGE_PIN(PORTA6),  .D_OUT_0(porta_out[6]),  .D_IN_0(porta_in[6]),  .OUTPUT_ENABLE(porta_dir[6]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa7  (.PACKAGE_PIN(PORTA7),  .D_OUT_0(porta_out[7]),  .D_IN_0(porta_in[7]),  .OUTPUT_ENABLE(porta_dir[7]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa8  (.PACKAGE_PIN(PORTA8),  .D_OUT_0(porta_out[8]),  .D_IN_0(porta_in[8]),  .OUTPUT_ENABLE(porta_dir[8]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa9  (.PACKAGE_PIN(PORTA9),  .D_OUT_0(porta_out[9]),  .D_IN_0(porta_in[9]),  .OUTPUT_ENABLE(porta_dir[9]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa10 (.PACKAGE_PIN(PORTA10), .D_OUT_0(porta_out[10]), .D_IN_0(porta_in[10]), .OUTPUT_ENABLE(porta_dir[10]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa11 (.PACKAGE_PIN(PORTA11), .D_OUT_0(porta_out[11]), .D_IN_0(porta_in[11]), .OUTPUT_ENABLE(porta_dir[11]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa12 (.PACKAGE_PIN(PORTA12), .D_OUT_0(porta_out[12]), .D_IN_0(porta_in[12]), .OUTPUT_ENABLE(porta_dir[12]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa13 (.PACKAGE_PIN(PORTA13), .D_OUT_0(porta_out[13]), .D_IN_0(porta_in[13]), .OUTPUT_ENABLE(porta_dir[13]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa14 (.PACKAGE_PIN(PORTA14), .D_OUT_0(porta_out[14]), .D_IN_0(porta_in[14]), .OUTPUT_ENABLE(porta_dir[14]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioa15 (.PACKAGE_PIN(PORTA15), .D_OUT_0(porta_out[15]), .D_IN_0(porta_in[15]), .OUTPUT_ENABLE(porta_dir[15]));  
+  
 
-  reg [7:0] header1_dir;   // 1:output, 0:input
-  reg [7:0] header1_out;
-  wire [7:0] header1_in;
+  // ######   PORTB   ###########################################
 
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio0 (.PACKAGE_PIN(PIO0_02), .D_OUT_0(header1_out[0]), .D_IN_0(header1_in[0]), .OUTPUT_ENABLE(header1_dir[0]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio1 (.PACKAGE_PIN(PIO0_03), .D_OUT_0(header1_out[1]), .D_IN_0(header1_in[1]), .OUTPUT_ENABLE(header1_dir[1]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio2 (.PACKAGE_PIN(PIO0_04), .D_OUT_0(header1_out[2]), .D_IN_0(header1_in[2]), .OUTPUT_ENABLE(header1_dir[2]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio3 (.PACKAGE_PIN(PIO0_05), .D_OUT_0(header1_out[3]), .D_IN_0(header1_in[3]), .OUTPUT_ENABLE(header1_dir[3]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio4 (.PACKAGE_PIN(PIO0_06), .D_OUT_0(header1_out[4]), .D_IN_0(header1_in[4]), .OUTPUT_ENABLE(header1_dir[4]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio5 (.PACKAGE_PIN(PIO0_07), .D_OUT_0(header1_out[5]), .D_IN_0(header1_in[5]), .OUTPUT_ENABLE(header1_dir[5]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio6 (.PACKAGE_PIN(PIO0_08), .D_OUT_0(header1_out[6]), .D_IN_0(header1_in[6]), .OUTPUT_ENABLE(header1_dir[6]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) gio7 (.PACKAGE_PIN(PIO0_09), .D_OUT_0(header1_out[7]), .D_IN_0(header1_in[7]), .OUTPUT_ENABLE(header1_dir[7]));
+  reg  [15:0] portb_dir;   // 1:output, 0:input
+  reg  [15:0] portb_out;
+  wire [15:0] portb_in;
 
-  reg [7:0] header2_dir;   // 1:output, 0:input
-  reg [7:0] header2_out;
-  wire [7:0] header2_in;
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob0  (.PACKAGE_PIN(PORTB0),  .D_OUT_0(portb_out[0]),  .D_IN_0(portb_in[0]),  .OUTPUT_ENABLE(portb_dir[0]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob1  (.PACKAGE_PIN(PORTB1),  .D_OUT_0(portb_out[1]),  .D_IN_0(portb_in[1]),  .OUTPUT_ENABLE(portb_dir[1]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob2  (.PACKAGE_PIN(PORTB2),  .D_OUT_0(portb_out[2]),  .D_IN_0(portb_in[2]),  .OUTPUT_ENABLE(portb_dir[2]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob3  (.PACKAGE_PIN(PORTB3),  .D_OUT_0(portb_out[3]),  .D_IN_0(portb_in[3]),  .OUTPUT_ENABLE(portb_dir[3]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob4  (.PACKAGE_PIN(PORTB4),  .D_OUT_0(portb_out[4]),  .D_IN_0(portb_in[4]),  .OUTPUT_ENABLE(portb_dir[4]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob5  (.PACKAGE_PIN(PORTB5),  .D_OUT_0(portb_out[5]),  .D_IN_0(portb_in[5]),  .OUTPUT_ENABLE(portb_dir[5]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob6  (.PACKAGE_PIN(PORTB6),  .D_OUT_0(portb_out[6]),  .D_IN_0(portb_in[6]),  .OUTPUT_ENABLE(portb_dir[6]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob7  (.PACKAGE_PIN(PORTB7),  .D_OUT_0(portb_out[7]),  .D_IN_0(portb_in[7]),  .OUTPUT_ENABLE(portb_dir[7]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob8  (.PACKAGE_PIN(PORTB8),  .D_OUT_0(portb_out[8]),  .D_IN_0(portb_in[8]),  .OUTPUT_ENABLE(portb_dir[8]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob9  (.PACKAGE_PIN(PORTB9),  .D_OUT_0(portb_out[9]),  .D_IN_0(portb_in[9]),  .OUTPUT_ENABLE(portb_dir[9]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob10 (.PACKAGE_PIN(PORTB10), .D_OUT_0(portb_out[10]), .D_IN_0(portb_in[10]), .OUTPUT_ENABLE(portb_dir[10]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob11 (.PACKAGE_PIN(PORTB11), .D_OUT_0(portb_out[11]), .D_IN_0(portb_in[11]), .OUTPUT_ENABLE(portb_dir[11]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob12 (.PACKAGE_PIN(PORTB12), .D_OUT_0(portb_out[12]), .D_IN_0(portb_in[12]), .OUTPUT_ENABLE(portb_dir[12]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob13 (.PACKAGE_PIN(PORTB13), .D_OUT_0(portb_out[13]), .D_IN_0(portb_in[13]), .OUTPUT_ENABLE(portb_dir[13]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob14 (.PACKAGE_PIN(PORTB14), .D_OUT_0(portb_out[14]), .D_IN_0(portb_in[14]), .OUTPUT_ENABLE(portb_dir[14]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) iob15 (.PACKAGE_PIN(PORTB15), .D_OUT_0(portb_out[15]), .D_IN_0(portb_in[15]), .OUTPUT_ENABLE(portb_dir[15]));  
 
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio0 (.PACKAGE_PIN(PIO2_10), .D_OUT_0(header2_out[0]), .D_IN_0(header2_in[0]), .OUTPUT_ENABLE(header2_dir[0]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio1 (.PACKAGE_PIN(PIO2_11), .D_OUT_0(header2_out[1]), .D_IN_0(header2_in[1]), .OUTPUT_ENABLE(header2_dir[1]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio2 (.PACKAGE_PIN(PIO2_12), .D_OUT_0(header2_out[2]), .D_IN_0(header2_in[2]), .OUTPUT_ENABLE(header2_dir[2]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio3 (.PACKAGE_PIN(PIO2_13), .D_OUT_0(header2_out[3]), .D_IN_0(header2_in[3]), .OUTPUT_ENABLE(header2_dir[3]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio4 (.PACKAGE_PIN(PIO2_14), .D_OUT_0(header2_out[4]), .D_IN_0(header2_in[4]), .OUTPUT_ENABLE(header2_dir[4]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio5 (.PACKAGE_PIN(PIO2_15), .D_OUT_0(header2_out[5]), .D_IN_0(header2_in[5]), .OUTPUT_ENABLE(header2_dir[5]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio6 (.PACKAGE_PIN(PIO2_16), .D_OUT_0(header2_out[6]), .D_IN_0(header2_in[6]), .OUTPUT_ENABLE(header2_dir[6]));
-  SB_IO #(.PIN_TYPE(6'b1010_01)) hio7 (.PACKAGE_PIN(PIO2_17), .D_OUT_0(header2_out[7]), .D_IN_0(header2_in[7]), .OUTPUT_ENABLE(header2_dir[7]));
+  // ######   PORTC   ###########################################
+  
+  reg  [15:0] portc_dir;   // 1:output, 0:input
+  reg  [15:0] portc_out;
+  wire [15:0] portc_in;
+
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc0  (.PACKAGE_PIN(PORTC0),  .D_OUT_0(portc_out[0]),  .D_IN_0(portc_in[0]),  .OUTPUT_ENABLE(portc_dir[0]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc1  (.PACKAGE_PIN(PORTC1),  .D_OUT_0(portc_out[1]),  .D_IN_0(portc_in[1]),  .OUTPUT_ENABLE(portc_dir[1]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc2  (.PACKAGE_PIN(PORTC2),  .D_OUT_0(portc_out[2]),  .D_IN_0(portc_in[2]),  .OUTPUT_ENABLE(portc_dir[2]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc3  (.PACKAGE_PIN(PORTC3),  .D_OUT_0(portc_out[3]),  .D_IN_0(portc_in[3]),  .OUTPUT_ENABLE(portc_dir[3]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc4  (.PACKAGE_PIN(PORTC4),  .D_OUT_0(portc_out[4]),  .D_IN_0(portc_in[4]),  .OUTPUT_ENABLE(portc_dir[4]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc5  (.PACKAGE_PIN(PORTC5),  .D_OUT_0(portc_out[5]),  .D_IN_0(portc_in[5]),  .OUTPUT_ENABLE(portc_dir[5]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc6  (.PACKAGE_PIN(PORTC6),  .D_OUT_0(portc_out[6]),  .D_IN_0(portc_in[6]),  .OUTPUT_ENABLE(portc_dir[6]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc7  (.PACKAGE_PIN(PORTC7),  .D_OUT_0(portc_out[7]),  .D_IN_0(portc_in[7]),  .OUTPUT_ENABLE(portc_dir[7]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc8  (.PACKAGE_PIN(PORTC8),  .D_OUT_0(portc_out[8]),  .D_IN_0(portc_in[8]),  .OUTPUT_ENABLE(portc_dir[8]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc9  (.PACKAGE_PIN(PORTC9),  .D_OUT_0(portc_out[9]),  .D_IN_0(portc_in[9]),  .OUTPUT_ENABLE(portc_dir[9]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc10 (.PACKAGE_PIN(PORTC10), .D_OUT_0(portc_out[10]), .D_IN_0(portc_in[10]), .OUTPUT_ENABLE(portc_dir[10]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc11 (.PACKAGE_PIN(PORTC11), .D_OUT_0(portc_out[11]), .D_IN_0(portc_in[11]), .OUTPUT_ENABLE(portc_dir[11]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc12 (.PACKAGE_PIN(PORTC12), .D_OUT_0(portc_out[12]), .D_IN_0(portc_in[12]), .OUTPUT_ENABLE(portc_dir[12]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc13 (.PACKAGE_PIN(PORTC13), .D_OUT_0(portc_out[13]), .D_IN_0(portc_in[13]), .OUTPUT_ENABLE(portc_dir[13]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc14 (.PACKAGE_PIN(PORTC14), .D_OUT_0(portc_out[14]), .D_IN_0(portc_in[14]), .OUTPUT_ENABLE(portc_dir[14]));
+  SB_IO #(.PIN_TYPE(6'b1010_01)) ioc15 (.PACKAGE_PIN(PORTC15), .D_OUT_0(portc_out[15]), .D_IN_0(portc_in[15]), .OUTPUT_ENABLE(portc_dir[15]));  
 
   // ######   UART   ##########################################
 
   wire uart0_valid, uart0_busy;
   wire [7:0] uart0_data;
-  wire uart0_wr = io_wr_ & io_addr_[12];
-  wire uart0_rd = io_rd_ & io_addr_[12];
+  wire uart0_wr = io_wr & mem_addr[12];
+  wire uart0_rd = io_rd & mem_addr[12];
   wire UART0_RX;
   buart _uart0 (
      .clk(clk),
@@ -220,13 +290,31 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
      .wr(uart0_wr),
      .valid(uart0_valid),
      .busy(uart0_busy),
-     .tx_data(dout_[7:0]),
+     .tx_data(dout[7:0]),
      .rx_data(uart0_data));
+
+  // ######   LEDS & PIOS   ###################################
 
   reg [5:0] PIOS;
   assign {CTS, PIO1_20, PIO1_18, PIOS_00, PIOS_02, PIOS_03} = PIOS;
-  reg [4:0] LEDS;
-  assign {D1,D2,D3,D4,D5} = LEDS;
+  reg [7:0] LEDS;
+  assign {D8,D7,D6,D5,D4,D3,D2,D1} = LEDS;
+
+  // ######   RING OSCILLATOR   ###############################
+
+  wire [1:0] buffers_in, buffers_out;
+  assign buffers_in = {buffers_out[0:0], ~buffers_out[1]};
+  SB_LUT4 #(
+          .LUT_INIT(16'd2)
+  ) buffers [1:0] (
+          .O(buffers_out),
+          .I0(buffers_in),
+          .I1(1'b0),
+          .I2(1'b0),
+          .I3(1'b0)
+  );
+
+  wire random = ~buffers_out[1];
 
   // ######   IO PORTS   ######################################
 
@@ -240,60 +328,68 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
       0010  4   header 1 in
       0020  5   header 1 out    header 1 out
       0040  6   header 1 dir    header 1 dir
-      0080  7
+      0080  7                   eint
 
       0100  8   header 2 in
       0200  9   header 2 out    header 2 out
       0400  10  header 2 dir    header 2 dir
-      0800  11
+      0800  11                  dint
 
       1000  12  UART RX         UART TX
       2000  13  misc.in
       4000  14  ticks           clear ticks
-      8000  15   ----- SB_WARMBOOT -----
+      8000  15
   */
 
   assign io_din =
 
-    (io_addr_[ 0] ? { 8'd0, pmod_in}                                         : 16'd0) |
-    (io_addr_[ 1] ? { 8'd0, pmod_out}                                        : 16'd0) |
-    (io_addr_[ 2] ? { 8'd0, pmod_dir}                                        : 16'd0) |
+    (mem_addr[ 0] ?         porta_in                                                 : 16'd0) |
+    (mem_addr[ 1] ?         porta_out                                                : 16'd0) |
+    (mem_addr[ 2] ?         porta_dir                                                : 16'd0) |
+    (mem_addr[ 3] ? { 2'd0, LEDS, PIOS}                                              : 16'd0) |
 
-    (io_addr_[ 4] ? { 8'd0, header1_in}                                      : 16'd0) |
-    (io_addr_[ 5] ? { 8'd0, header1_out}                                     : 16'd0) |
-    (io_addr_[ 6] ? { 8'd0, header1_dir}                                     : 16'd0) |
+    (mem_addr[ 4] ?         portb_in                                                 : 16'd0) |
+    (mem_addr[ 5] ?         portb_out                                                : 16'd0) |
+    (mem_addr[ 6] ?         portb_dir                                                : 16'd0) |
 
-    (io_addr_[ 8] ? { 8'd0, header2_in}                                      : 16'd0) |
-    (io_addr_[ 9] ? { 8'd0, header2_out}                                     : 16'd0) |
-    (io_addr_[10] ? { 8'd0, header2_dir}                                     : 16'd0) |
 
-    (io_addr_[ 3] ? { 5'd0, LEDS, PIOS}                                      : 16'd0) |  // This is here as reordering of the lines saves gates.
-    (io_addr_[14] ?         ticks                                            : 16'd0) |
+    (mem_addr[ 8] ?         portc_in                                                 : 16'd0) |
+    (mem_addr[ 9] ?         portc_out                                                : 16'd0) |
+    (mem_addr[10] ?         portc_dir                                                : 16'd0) |
 
-    (io_addr_[12] ? { 8'd0, uart0_data}                                      : 16'd0) |
-    (io_addr_[13] ? {11'd0, RTS, PIO1_19, PIOS_01, uart0_valid, !uart0_busy} : 16'd0);
+
+    (mem_addr[12] ? { 8'd0, uart0_data}                                              : 16'd0) |
+    (mem_addr[13] ? {10'd0, random, RTS, PIO1_19, PIOS_01, uart0_valid, !uart0_busy} : 16'd0) |
+    (mem_addr[14] ?         ticks                                                    : 16'd0) ;
 
   // Very few gates needed: Simply trigger warmboot by any IO access to $8000 / $8001 / $8002 / $8003.
-  SB_WARMBOOT _sb_warmboot ( .BOOT(io_addr_[15]), .S1(io_addr_[1]), .S0(io_addr_[0]) );
+  // SB_WARMBOOT _sb_warmboot ( .BOOT(io_wr & mem_addr[15]), .S1(mem_addr[1]), .S0(mem_addr[0]) );
 
   always @(posedge clk) begin
 
-    if (io_wr_ & io_addr_[1])  pmod_out <= dout_[7:0];
-    if (io_wr_ & io_addr_[2])  pmod_dir <= dout_[7:0];
-    if (io_wr_ & io_addr_[3])  {LEDS, PIOS} <= dout_[10:0];
+    if (io_wr & mem_addr[1])  porta_out <= dout;
+    if (io_wr & mem_addr[2])  porta_dir <= dout;
+    if (io_wr & mem_addr[3])  {LEDS, PIOS} <= dout[13:0];
 
-    if (io_wr_ & io_addr_[5])  header1_out <= dout_[7:0];
-    if (io_wr_ & io_addr_[6])  header1_dir <= dout_[7:0];
+    if (io_wr & mem_addr[5])  portb_out <= dout;
+    if (io_wr & mem_addr[6])  portb_dir <= dout;
+    if (io_wr & mem_addr[7])  interrupt_enable <= 1;
 
-    if (io_wr_ & io_addr_[9])  header2_out <= dout_[7:0];
-    if (io_wr_ & io_addr_[10]) header2_dir <= dout_[7:0];
+    if (io_wr & mem_addr[9])  portc_out <= dout;
+    if (io_wr & mem_addr[10]) portc_dir <= dout;
+    if (io_wr & mem_addr[11]) interrupt_enable <= 0;
 
   end
 
+  // ######   MEMLOCK   #######################################
+
+  // This is a workaround to protect memory contents during Reset.
+  // Somehow it happens sometimes that the first memory location is corrupted during startup,
+  // and as an IO write is one of the earliest things which are done, memory write access is unlocked
+  // only after the processor is up and running and sending its welcome message.
+
   always @(negedge resetq or posedge clk)
-    if (!resetq)
-      unlocked <= 0;
-    else
-      unlocked <= unlocked | io_wr_;
+  if (!resetq) unlocked <= 0;
+  else         unlocked <= unlocked | io_wr;
 
 endmodule // top

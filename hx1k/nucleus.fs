@@ -1,20 +1,12 @@
 
 \ Swapforth Nucleus by James Bowman enhanced with constant folding and inline optimisations by Matthias Koch
 
-header-1-foldable 1+       : 1+        d# 1 + ;
-header-1-foldable negate   : negate    invert d# 1 + ;
-header-1-foldable 1-       : 1-        d# 1 - ;
-header-1-foldable 0=       : 0=        d# 0 = ;
-header-1-foldable cell+    : cell+     d# 2 + ;
 
-header-2-foldable <>       : <>        = invert ;
-header-1-foldable 0<>      : 0<>       d# 0 <> ;
-header-2-foldable >        : >         swap < ;
-header-1-foldable 0<       : 0<        d# 0 < ;
-header-1-foldable 0>       : 0>        d# 0 > ;
-header-2-foldable u>       : u>        swap u< ;
+\ -----------------------------------------------------------------------------
+\  Low level definitions that are different for HX1K and HX8K
+\ -----------------------------------------------------------------------------
 
-header-1-foldable drop     : tdrop     drop     ;
+header execute : execute >r ;
 
 header-2-foldable lshift
 : lshift
@@ -49,81 +41,26 @@ header-2-foldable arshift
     drop
 ;
 
-header emit?
-: emit?  ( -- ? )  d# 1 : uartstat h# 2000 io@ overand = ;
+header-1-foldable 1+       : 1+        d# 1 + ;
+header-1-foldable negate   : negate    invert d# 1 + ;
+header-1-foldable 1-       : 1-        d# 1 - ;
+header @                   : @         h# 2000 or >r ;
 
-header key?
-: key?   ( -- ? )  d# 2   uartstat ;
+\ -----------------------------------------------------------------------------
+\  Low level definitions
+\ -----------------------------------------------------------------------------
 
-header key
-: key
-    begin
-        key?
-    until
-;fallthru
-: key>
-    h# 1000 io@
-;
+header-1-foldable 0=       : 0=        d# 0 = ;
+header-1-foldable cell+    : cell+     d# 2 + ;
 
-header emit
-: emit
-    begin
-        emit?
-    until
-    h# 1000 io!
-;
+header-2-foldable <>       : <>        = invert ;
+header-1-foldable 0<>      : 0<>       d# 0 <> ;
+header-2-foldable >        : >         swap < ;
+header-1-foldable 0<       : 0<        d# 0 < ;
+header-1-foldable 0>       : 0>        d# 0 > ;
+header-2-foldable u>       : u>        swap u< ;
 
-header space
-: space
-    d# 32 emit
-;
-
-header cr
-: cr
-    d# 10
-    d# 13
-;fallthru
-: 2emit
-    emit emit
-;
-
-header-0-foldable bl
-: bl
-    d# 32
-;
-
-: hex4
-    dup d# 8 rshift
-    DOUBLE
-;fallthru
-: hex2
-    dup d# 4 rshift
-    DOUBLE
-    h# f and
-    dup d# 10 < if
-        [char] 0
-    else
-        d# 55
-    then
-    +
-    emit
-;
-
-header .x2
-: .x2 hex2 space ;
-
-header .x
-: . hex4 space ;
-
-header execute
-: execute
-    >r
-;
-
-header @
-: @
-    h# 2000 or >r
-;
+header-1-foldable drop     : tdrop     drop     ;
 
 header-0-foldable false    : false d# 0 ;
 header-0-foldable true     : true  d# -1 ;
@@ -144,111 +81,36 @@ header-2-foldable max      : max   2dup< if nip else drop then ;
 header-2-foldable umin     : umin  2dupu< if drop else nip then ;
 header-2-foldable umax     : umax  2dupu< if nip else drop then ;
 
-
-header c@
-: c@
-    dup @ swap
-    d# 1 and if
-        2/ 2/ 2/ 2/
-        2/ 2/ 2/ 2/
-    then
-    d# 255 and
-;
-
-header c!
-: c! ( u c-addr -- )
-    dup>r d# 1 and if
-        d# 8 lshift
-        h# 00ff
-    else
-        h# 00ff and
-        h# ff00
-    then
-    r@ @ and
-    or r>
-;fallthru
-: _!    ( x a -- ) \ subroutine version of store
-    !
-;
-
-header count
-: count
-    d# 1 over+ swap c@
-;
-
-header-2-foldable bounds
-: bounds ( a n -- a+n a )
-    over+ swap
-;
-
-header type
-: type
-    bounds
-    begin
-        2dupxor
-    while
-        count emit
-    repeat
-    2drop
-;
-
-create base     $a ,
-create forth    0 ,
-create dp       0 ,         \ Data pointer, grows up
-create lastword 0 ,
-create thisxt   0 ,
-create sourceC  0 , 0 ,
-create >in      0 ,
-create state    0 ,
-create rO       0 ,
-create leaves   0 ,
-create init     0 ,
-create constantfoldingpointer 0 ,
-create foldability 0 ,
-create fineforoptimisation 0 ,
-create tib      #128 allot
-
-header-0-foldable state :noname state ;
-header-0-foldable base  :noname base ;
-header-0-foldable >in   :noname >in  ;
-header-0-foldable forth :noname forth ;
-header-0-foldable init  :noname init ;
-header-0-foldable tib   :noname tib ;
-
-: nextword
-    @ h# 1ffe and  \ Mask off the low immediate bit and the three high foldability marker bits
-;
-
-header words : words
-    forth @i
-    begin
-        dup
-    while
-        dup cell+
-        count type
-        space
-        nextword
-    repeat
-    drop
-;
+header-2-foldable bounds   : bounds ( a n -- a+n a ) over+ swap ;
 
 header-1-foldable abs      : abs       dup 0< if negate then ;
-header here                : here      dp @i ;
 
-header /string
-: /string
-    dup >r - swap r> + swap
-;
+header-1-foldable cells    :noname     2*       ;
+header-1-foldable 2*       :noname     2*       ;
+header-1-foldable 2/       :noname     2/       ;
+header !                   :noname     !        ;
+header-2-foldable +        :noname     +        ;
+header-2-foldable -        :noname     -        ;
+header-2-foldable xor      :noname     xor      ;
+header-2-foldable and      :noname     and      ;
+header-2-foldable or       :noname     or       ;
+header-1-foldable not      :noname     invert   ;
+header-1-foldable invert   :noname     invert   ;
+header-2-foldable =        :noname     =        ;
+header-2-foldable <        :noname     <        ;
+header-2-foldable u<       :noname     u<       ;
+header-2-foldable swap     :noname     swap     ;
+header-1-foldable dup      :noname     dup      ;
+header-2-foldable over     :noname     over     ;
+header-2-foldable nip      :noname     nip      ;
 
-: 1/string
-    d# 1
-    /string
-;
+header io!      :noname     io!      ;
+header io@      :noname     io@      ;
+header depth    :noname     depth    ;
 
-header-1-foldable aligned
-: aligned
-    1+ 2/ 2*
-;
+\ -----------------------------------------------------------------------------
+\  Double numbers
+\ -----------------------------------------------------------------------------
 
 header-4-foldable d+
 : d+                              ( augend . addend . -- sum . )
@@ -290,65 +152,47 @@ header-2-foldable d0=
     or 0=
 ;
 
-\ : snap
-\     cr depth hex2 space
-\     begin
-\         depth
-\     while
-\         .
-\     repeat
-\     cr
-\     [char] # emit
-\     begin again
-\ ;
-
-create scratch 0 ,
-
 header-2-foldable d2*
 : d2*
     2* over d# 0 < d# 1 and + swap 2* swap
 ;
 
+\ -----------------------------------------------------------------------------
+\  Multiplication
+\ -----------------------------------------------------------------------------
+
 : mulstep ( ud u1 -- ud u1 )
-    DOUBLE DOUBLE
-    >r
-    d2*
-    r@ d# 0 < if
-        scratch @i d# 0 d+
-    then
-    r> 2*
+  DOUBLE DOUBLE
+  >r
+  >r d2* r>
+  dup d# 0 < if r@ swap >r d# 0 d+ r> then
+  2*
+  r>
 ;
 
 header-2-foldable um*
 : um*  ( u1 u2 -- ud )
-    scratch _!
-    d# 0. rot
-    mulstep mulstep mulstep mulstep
-    drop
+  >r >r d# 0. r> r>
+  mulstep mulstep mulstep mulstep
+  \ mulstep mulstep mulstep mulstep
+  \ mulstep mulstep mulstep mulstep
+  \ mulstep mulstep mulstep mulstep
+  drop drop
 ;
-
-\ : mul32step ( u2 u1 -- u2 u1 )
-\     DOUBLE DOUBLE
-\     >r
-\     2*
-\     r@ d# 0 < if
-\         scratch @i +
-\     then
-\     r> 2*
-\ ;
-\
-\ header *
-\ : *
-\     scratch !
-\     d# 0 swap
-\     mul32step mul32step mul32step mul32step
-\     drop
-\ ;
 
 header-2-foldable *
-: *
+: * ( u1 u2 -- u )
     um* drop
 ;
+
+\ : ud* ( ud1 u -- ud2 ) \ ud2 is the product of ud1 and u
+\     tuck * >r
+\     um* r> +
+\ ;
+
+\ -----------------------------------------------------------------------------
+\  Division
+\ -----------------------------------------------------------------------------
 
 \ see Hacker's Delight (2nd ed) 9-4 "Unsigned Long Division"
 
@@ -370,6 +214,198 @@ header-3-foldable um/mod
     drop swap
 ;
 
+\ -----------------------------------------------------------------------------
+\  Terminal IO
+\ -----------------------------------------------------------------------------
+
+header emit?
+: emit?  ( -- ? )  d# 1 : uartstat h# 2000 io@ overand = ;
+
+header key?
+: key?   ( -- ? )  d# 2   uartstat ;
+
+header key
+: key
+    begin
+        key?
+    until
+;fallthru
+: key>
+    h# 1000 io@
+;
+
+header emit
+: emit
+    begin
+        emit?
+    until
+    h# 1000 io!
+;
+
+: 2emit
+    emit emit
+;
+
+\ -----------------------------------------------------------------------------
+\  Byte memory access, emulated
+\ -----------------------------------------------------------------------------
+
+header c@
+: c@
+    dup @ swap
+    d# 1 and if
+        2/ 2/ 2/ 2/
+        2/ 2/ 2/ 2/
+    then
+    d# 255 and
+;
+
+header c!
+: c! ( u c-addr -- )
+    dup>r d# 1 and if
+        d# 8 lshift
+        h# 00ff
+    else
+        h# 00ff and
+        h# ff00
+    then
+    r@ @ and
+    or r>
+;fallthru
+: _!    ( x a -- ) \ subroutine version of store
+    !
+;
+
+\ -----------------------------------------------------------------------------
+\  Strings
+\ -----------------------------------------------------------------------------
+
+header space
+: space
+    d# 32 emit
+;
+
+header cr
+: cr
+    d# 10 emit
+;
+
+header-0-foldable bl
+: bl
+    d# 32
+;
+
+: hex4
+    dup d# 8 rshift
+    DOUBLE
+;fallthru
+: hex2
+    dup d# 4 rshift
+    DOUBLE
+    h# f and
+    dup d# 10 < if
+        [char] 0
+    else
+        d# 55
+    then
+    +
+    emit
+;
+
+header .x2
+: .x2 hex2 space ;
+
+header .x
+: .x4 hex4 space ;
+
+header count
+: count
+    d# 1 over+ swap c@
+;
+
+header type
+: type
+    bounds
+    begin
+        2dupxor
+    while
+        count emit
+    repeat
+    2drop
+;
+
+header /string
+: /string
+    dup >r - swap r> + swap
+;
+
+: 1/string
+    d# 1
+    /string
+;
+
+\ -----------------------------------------------------------------------------
+\  Core variables
+\ -----------------------------------------------------------------------------
+
+create base     $a ,
+create forth    0 ,
+create dp       0 ,         \ Data pointer, grows up
+create lastword 0 ,
+create thisxt   0 ,
+create sourceC  0 , 0 ,
+create >in      0 ,
+create state    0 ,
+create rO       0 ,
+create leaves   0 ,
+create init     0 ,
+create constantfoldingpointer 0 ,
+create foldability 0 ,
+create fineforoptimisation 0 ,
+create tib      #128 allot
+
+header-0-foldable state :noname state ;
+header-0-foldable base  :noname base ;
+header-0-foldable >in   :noname >in  ;
+header-0-foldable forth :noname forth ;
+header-0-foldable init  :noname init ;
+header-0-foldable tib   :noname tib ;
+header here             : here  dp @i ;
+
+\ -----------------------------------------------------------------------------
+\  Dictionary handling
+\ -----------------------------------------------------------------------------
+
+\ Dictionary structure:
+\ 2 bytes link and foldability:  13 bits link, 3 bytes foldability.
+\ 1 byte name length, msb denotes immediate + n bytes name, aligned.
+\ Executable code.
+
+
+: dictionarycount count d# 127 and ;
+
+: nextword
+    @ 2/ 2/ h# 3FFE and \ Remove flags for foldability.
+;
+
+header words : words
+    forth @i
+    begin
+        dup
+    while
+        dup cell+
+        dictionarycount type
+        space
+        nextword
+    repeat
+    drop
+;
+
+header-1-foldable aligned
+: aligned
+    1+ 2/ 2*
+;
+
 : 3rd   >r over r> swap ;
 
 : lower ( c1 -- c2 ) \ c2 is the lower-case of c1
@@ -385,7 +421,7 @@ header-3-foldable um/mod
 ;
 
 : sameword ( c-addr u wp -- c-addr u wp flag )
-    2dup cell+ c@ = if              \ lengths match?
+    2dup cell+ c@ d# 127 and = if              \ lengths match?
         3rd 3rd 3rd                 \ 3dup
         d# 3 + >r                   \ R: word in dictionary
         bounds
@@ -406,7 +442,7 @@ header-3-foldable um/mod
 
 : >xt
     cell+
-    count +
+    dictionarycount +
     aligned
 ;
 
@@ -417,8 +453,7 @@ header align
     dp _!
 ;
 
-
-header sfind ( c-addr len -- c-addr len 0 | a-addr flags )
+header sfind ( c-addr len -- c-addr len 0 | a-addr flags ) \ Flags are -1 for normal words, 1 for immediate words.
 : sfind
     forth @i
     begin
@@ -431,25 +466,18 @@ header sfind ( c-addr len -- c-addr len 0 | a-addr flags )
             swap        ( xt wp )
                         \ wp lsb 0 means non-immediate, return -1
                         \        1 means immediate,     return  1
-            dup @ d# 13 rshift foldability _!
-            @ d# 1 and 2* 1-
+                        
+            dup @ d# 7 and foldability _!                \ Three LSBs of Link are flags for foldability                       
+            cell+ @ d# 128 and if d# 1 else d# -1 then   \ MSB of name length is flag for immediate
             ;
         then
         nextword
     repeat
 ;
 
-: digit? ( c -- u f )
-   lower
-   dup h# 39 > h# 100 and +
-   dup h# 160 > h# 127 and - h# 30 -
-   dup base @i u<
-;
-
-\ : ud* ( ud1 u -- ud2 ) \ ud2 is the product of ud1 and u
-\     tuck * >r
-\     um* r> +
-\ ;
+\ -----------------------------------------------------------------------------
+\  Memory
+\ -----------------------------------------------------------------------------
 
 header fill
 : fill ( c-addr u char -- ) ( 6.1.1540 )
@@ -499,6 +527,10 @@ header 2!
     cell+ _!
 ;
 
+\ -----------------------------------------------------------------------------
+\  Input buffer and parsing
+\ -----------------------------------------------------------------------------
+
 header source
 : source
     sourceC 2@
@@ -540,6 +572,8 @@ header parse-name
     tuck -
 ;
 
+create scratch 0 ,
+
 : isnotdelim
     scratch @i <>
 ;
@@ -552,6 +586,10 @@ header parse
     ['] isnotdelim
     _parse
 ;
+
+\ -----------------------------------------------------------------------------
+\  Compiler
+\ -----------------------------------------------------------------------------
 
 header allot
 : tallot
@@ -610,6 +648,10 @@ header compile,
   w,
 ;
 
+\ -----------------------------------------------------------------------------
+\  String literals
+\ -----------------------------------------------------------------------------
+
 header s,
 : s,
     dup c,
@@ -637,29 +679,37 @@ header-imm sliteral
     s,
 ;
 
+\ -----------------------------------------------------------------------------
+\  Flags and headers
+\ -----------------------------------------------------------------------------
+
 : mkheader
     align
     here lastword _!
-    forth @i w,
+    forth @i 2* 2* w,
     parse-name
     s,
     dp @i thisxt _!
 ;
 
-header immediate
-:noname
-    d# 1
-;fallthru
-: setflags ( bitmask -- )
-    lastword @i dup>r ( bitmask addr R: addr )
-    @ or r> _!
+header foldable
+: foldable ( u -- )
+  1+
+  lastword @i  
+: setbit ( bitmask addr -- )
+  dup>r @ or r> _!
 ;
 
-header foldable
-: foldable
-  1+ d# 13 lshift
-  setflags
+header immediate
+:noname    
+  d# 128                   \ Set MSB of name length
+  lastword @i cell+
+  setbit
 ;
+
+\ -----------------------------------------------------------------------------
+\  Compiler essentials
+\ -----------------------------------------------------------------------------
 
 header-imm [
 : t[
@@ -685,11 +735,6 @@ header :noname
     dup thisxt _!
     lastword off
     t]
-;
-
-: (loopdone)  ( 0 -- )
-    drop
-    r> r> rO _! >r
 ;
 
 \ Do not handle ALU instructions for size reasons, as only negative literals and R-Stack cause ALUs to be compiled
@@ -723,6 +768,10 @@ header-imm ;
     texit
     t[
 ;
+
+\ -----------------------------------------------------------------------------
+\  Control structures
+\ -----------------------------------------------------------------------------
 
 \ Represent forward branches in one word
 \ using the high-3 bits for the branch type,
@@ -773,31 +822,69 @@ header-imm recurse
     thisxt @i compile,
 ;
 
+\ -----------------------------------------------------------------------------
+\  Counted loops
+\ -----------------------------------------------------------------------------
+
 \
 \ How DO...LOOP is implemented
 \
-\ Uses top of R-stack (R) and a variable rO:
-\    R is the counter; it starts negative and counts up. When it reaches 0, loop exits
-\    rO is the offset. It is set up at loop start so that I can be computed from (rC+rO)
+\ It uses two elements on the return stack:
+\    index-limit is the counter; it starts negative and counts up. When it reaches 0, loop exits
+\    limit is the offset. I can be computed from (index-limit+limit)
 \
-\ So DO receives ( limit start ) on the stack. It needs to compute:
-\      R = start - limit
-\      rO = limit
+\ So DO receives ( limit start ) on the stack.
 \
 \ E.g. for "13 3 DO"
-\      rC = -10
-\      rO = 13
+\      index-limit = -10
+\      limit       = 13
 \
 \ So the loop runs:
-\      R      -10 -9 -8 -7 -6 -5 -4 -3 -2 -1
-\      I        3  4  5  6  7  8  9 10 11 12
-\
+\      index-limit      -10 -9 -8 -7 -6 -5 -4 -3 -2 -1
+\      I                  3  4  5  6  7  8  9 10 11 12
 \
 
-: (do)  ( limit start -- start-limit )
-    r> rO @i >r >r
-    over rO _!
-    swap -
+: (do)  ( limit start -- )
+    over -   ( limit start-limit )
+    swap     ( start-limit limit )
+    r>       ( start-limit limit ret )
+    swap >r  ( start-limit ret )
+    swap >r  ( ret )
+    >r
+;
+
+: (?do)  ( -- ?  R: start-limit -- start-limit )
+    r> r@ 0= swap >r
+;
+
+: (loopnext)  ( -- ?  R: limit index-limit -- limit index+1-limit )
+    r>         ( addr )
+    r>         ( addr index-lim )
+    d# 1 +     ( addr index+1-lim )
+    dup >r     ( addr index+1-lim )
+    swap >r    ( index+1-lim )
+    d# 0 =
+;
+
+: (+loopnext) ( inc -- ?  R: limit index-limit -- limit index+inc-limit )
+
+    r> swap    ( addr inc )
+    
+    dup 0<                  \ Check sign of increment
+    if                      \ Negative increment
+      r@ +
+      r> over u<        
+    else                    \ Positive increment    
+      r@ +
+      r> overu>
+    then
+
+    swap >r    ( addr flag )
+    swap >r    ( flag )
+;
+
+: (loopdone)  ( -- )
+    r> rdrop rdrop >r
 ;
 
 : do-common     \ common prefix for DO and ?DO
@@ -810,20 +897,14 @@ header-imm do
     do-common
 : dotail
     tbegin
-    inline: >r
 ;
 
 header-imm leave
 : leave
-    inline: r>
 : leave,
     dp @i
     leaves @i w,
     leaves _!
-;
-
-: (?do)  ( start-limit -- start-limit start=limit )
-    d# 0 over=
 ;
 
 header-imm ?do
@@ -852,59 +933,56 @@ header-imm ?do
     ['] (loopdone) compile,
 ;
 
-: (loopnext)
-    d# 1 + d# 0 over=
-;
-
 header-imm loop
 :noname
-    inline: r>
     ['] (loopnext) compile,
     tuntil
     resolveleaves
 ;
 
-: (+loopnext) ( inc R -- R finished )
-    over 0< if
-        dup>r +
-        r> over ( R old new )
-        u<
-    else
-        dup>r +
-        r> overu> ( R old new )
-      \  u>
-    then
-;
-
 header-imm +loop
 :noname
-    inline: r>
     ['] (+loopnext) compile,
     tuntil
     resolveleaves
 ;
 
-header i
+header i  ( -- index  R: limit index-limit -- limit index-limit )
 : i
-    r>
-    r@ rO @i +
-    swap >r
+  r>           ( addr )
+  r>           ( addr index-lim )
+  r@           ( addr index-lim lim )
+  over+        ( addr index-lim index )
+  swap >r
+  swap >r
 ;
 
-header j
+header j  ( -- indexb  R: limitb indexb-limitb limita indexa-limita -- limitb indexb-limitb limita indexa-limita )
 : j
-    r> r>
-    r> r> 2dup+ -rot
-    >r >r
-    -rot
-    >r >r
+
+  r>           ( addr )
+  r>           ( addr index-lima )
+  r>           ( addr index-lima lima )
+  
+  r>           ( addr index-lima lima index-limb )
+  r@           ( addr index-lima lima index-limb limb )
+  over+        ( addr index-lima lima index-limb indexb )
+  
+  swap >r
+  swap >r
+  swap >r
+  swap >r
 ;
 
 header-imm unloop
 :noname
-    inline: r>
     ['] (loopdone) compile,
 ;
+
+
+\ -----------------------------------------------------------------------------
+\  Number IO base
+\ -----------------------------------------------------------------------------
 
 header decimal
 : decimal
@@ -926,32 +1004,18 @@ header hex
   setbase
 ;
 
-header-1-foldable cells    :noname     2*       ;
-header-1-foldable 2*       :noname     2*       ;
-header-1-foldable 2/       :noname     2/       ;
-header !                   :noname     !        ;
-header-2-foldable +        :noname     +        ;
-header-2-foldable -        :noname     -        ;
-header-2-foldable xor      :noname     xor      ;
-header-2-foldable and      :noname     and      ;
-header-2-foldable or       :noname     or       ;
-header-1-foldable not      :noname     invert   ;
-header-1-foldable invert   :noname     invert   ;
-header-2-foldable =        :noname     =        ;
-header-2-foldable <        :noname     <        ;
-header-2-foldable u<       :noname     u<       ;
-header-2-foldable swap     :noname     swap     ;
-header-1-foldable dup      :noname     dup      ;
-header-2-foldable over     :noname     over     ;
-header-2-foldable nip      :noname     nip      ;
-header io!      :noname     io!      ;
-header io@      :noname     io@      ;
-header depth    :noname     depth    ;
+\ -----------------------------------------------------------------------------
+\  Return stack jugglers
+\ -----------------------------------------------------------------------------
+
 header-imm >r   :noname     inline: >r ;
 header-imm r>   :noname     inline: r> ;
 header-imm r@   :noname     inline: r@ ;
 header-imm rdrop  :noname   inline: rdrop ;
 
+\ -----------------------------------------------------------------------------
+\  Compilation tools
+\ -----------------------------------------------------------------------------
 
 header abort
 : abort
@@ -995,6 +1059,18 @@ header char
 header-imm-0-foldable \
 :noname
     sourceC @i >in _!
+;
+
+
+\ -----------------------------------------------------------------------------
+\  Number input
+\ -----------------------------------------------------------------------------
+
+: digit? ( c -- u f )
+   lower
+   dup h# 39 > h# 100 and +
+   dup h# 160 > h# 127 and - h# 30 -
+   dup base @i u<
 ;
 
 create sign 0 ,
@@ -1055,6 +1131,9 @@ header number
   r> base _!
 ;
 
+\ -----------------------------------------------------------------------------
+\  Interpreter
+\ -----------------------------------------------------------------------------
 
 : flushconstants ( n*x count -- {n-1}*x count-1 ) \ Recursive to write them out in reverse order
   dup if \ Do nothing if count is zero
@@ -1119,6 +1198,10 @@ header number
     2drop
 ;
 
+\ -----------------------------------------------------------------------------
+\  Terminal input
+\ -----------------------------------------------------------------------------
+
 \ Unicode-friendly ACCEPT contibuted by Matthias Koch
 
 : delchar ( addr len -- addr len )
@@ -1178,6 +1261,11 @@ header evaluate
     r> >in _! r> r> source!
 ;
 
+
+\ -----------------------------------------------------------------------------
+\  Main loop of Forth
+\ -----------------------------------------------------------------------------
+
 header quit
 : quit
     begin depth while drop repeat \ Clear the stack
@@ -1196,6 +1284,10 @@ header quit
             cr
     again
 ;
+
+\ -----------------------------------------------------------------------------
+\  SPI flash memory access
+\ -----------------------------------------------------------------------------
 
 \ Read-modify-write on IO
 
@@ -1262,8 +1354,17 @@ header load
   quit
 ;
 
+
+\ -----------------------------------------------------------------------------
+\  Interrupts
+\ -----------------------------------------------------------------------------
+
 header eint : eint ( -- ) h# 0 h# 0080 io! ;
 header dint : dint ( -- ) h# 0 h# 0800 io! ;
+
+\ -----------------------------------------------------------------------------
+\  Boot here
+\ -----------------------------------------------------------------------------
 
 : main
     dint     \ Disable interrupts
@@ -1284,7 +1385,7 @@ header dint : dint ( -- ) h# 0 h# 0800 io! ;
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 6 emit
+    [char] 7 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.

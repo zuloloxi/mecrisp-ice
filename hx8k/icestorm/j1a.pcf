@@ -1,48 +1,64 @@
-set_io D1 99
-set_io D2 98
-set_io D3 97
-set_io D4 96
-set_io D5 95
+set_io D1 C3
+set_io D2 B3
+set_io D3 C4
+set_io D4 C5
+set_io D5 A1
+set_io D6 A2
+set_io D7 B4
+set_io D8 B5
 
-set_io CTS 4
-set_io RTS 7
+set_io CTS A15
+set_io RTS B13
 
-set_io TXD 8
-set_io RXD 9
+set_io TXD B12
+set_io RXD B10
 
-set_io oscillator 21
-set_io resetq 3
+set_io oscillator J3
+set_io resetq A16
 
-set_io PIOS_00 70
-set_io PIOS_01 68
-set_io PIOS_02 67
-set_io PIOS_03 71
-set_io PIO1_18 105
-set_io PIO1_19 106
-set_io PIO1_20 107
-set_io PIO1_02 78
-set_io PIO1_03 79
-set_io PIO1_04 80
-set_io PIO1_05 81
-set_io PIO1_06 87
-set_io PIO1_07 88
-set_io PIO1_08 90
-set_io PIO1_09 91
+set_io PIOS_00 R11
+set_io PIOS_01 P11
+set_io PIOS_02 P12
+set_io PIOS_03 R12
 
-set_io PIO0_02 112
-set_io PIO0_03 113
-set_io PIO0_04 114
-set_io PIO0_05 115
-set_io PIO0_06 116
-set_io PIO0_07 117
-set_io PIO0_08 118
-set_io PIO0_09 119
 
-set_io PIO2_10 44
-set_io PIO2_11 45
-set_io PIO2_12 47
-set_io PIO2_13 48
-set_io PIO2_14 56
-set_io PIO2_15 60
-set_io PIO2_16 61
-set_io PIO2_17 62
+
+set_io PORTA0  C16
+set_io PORTA1  D16
+set_io PORTA2  E16
+
+set_io PORTA3  F16
+set_io PORTA4  G16
+set_io PORTA5  H16
+
+set_io PORTA6  J15
+set_io PORTA7  G14
+set_io PORTA8  K14
+
+set_io PORTA9  K15
+set_io PORTA10 M16
+set_io PORTA11 N16
+
+set_io PORTA12 P16
+
+
+
+set_io PORTB0  B16
+set_io PORTB1  D14
+set_io PORTB2  D15
+
+set_io PORTB3  E14
+set_io PORTB4  F15
+set_io PORTB5  G15
+
+set_io PORTB6  H14
+set_io PORTB7  F14
+set_io PORTB8  J14
+
+set_io PORTB9  K16
+set_io PORTB10 L16
+set_io PORTB11 M15
+
+set_io PORTB12 P15
+set_io PORTB13 R15
+

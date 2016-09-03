@@ -1,8 +1,5 @@
 #!/bin/bash
 
-rm log
-rm *.pyc
-rm icestorm/*.blif
-rm icestorm/*.txt
-
-
+rm build/*
+rm emulator/icecreammachine
+rm emulator/*.o
