@@ -25,6 +25,7 @@ module j1(
 
   wire [15:0] insn = interrupt ? 16'h4FFF : insn_from_memory;  // Interrupt: Execute "Call 1FFE".
   wire [12:0] pc_plus_1 = interrupt ? pc : pc + 13'd1;         // Do not increment PC for interrupts to continue later at the same location.
+  wire fetch = pc[12] & ~interrupt;                            // Memory fetch data on pc[12] only valid if this is no interrupt entry.
 
   reg rstkW;                    // Return stack write
   wire [15:0] rstkD;            // Return stack write value
@@ -47,8 +48,8 @@ module j1(
   always @*
   begin
     // Compute the new value of st0
-    casez ({pc[12], insn[15:8]})
-      9'b1_???_?????: st0N = insn;                                  // Memory fetch
+    casez ({fetch, insn[15:8]})
+      9'b1_???_?????: st0N = insn_from_memory;                      // Memory fetch
 
       9'b0_1??_?????: st0N = { 1'b0, insn[14:0] };                  // Literal
       9'b0_000_?????: st0N = st0;                                   // Jump
@@ -85,7 +86,7 @@ module j1(
   wire func_iow =   (insn[6:4] == 4);
   wire func_ior =   (insn[6:4] == 5);
 
-  wire is_alu = !pc[12] & (insn[15:13] == 3'b011);
+  wire is_alu = !fetch & (insn[15:13] == 3'b011);
 
   assign mem_wr = notreboot & is_alu & func_write;
   assign io_wr  = notreboot & is_alu & func_iow;
@@ -97,7 +98,7 @@ module j1(
 
   always @*
   begin
-    casez ({pc[12], insn[15:13]})                          // Calculate new data stack pointer
+    casez ({fetch, insn[15:13]})                          // Calculate new data stack pointer
     4'b1_???,
     4'b0_1??:   {dstkW, dspI} = {1'b1,      2'b01};          // Memory Fetch & Literal
     4'b0_001:   {dstkW, dspI} = {1'b0,      2'b11};          // Conditional jump
@@ -106,14 +107,14 @@ module j1(
     endcase
     dspN = dsp + {dspI[1], dspI[1], dspI[1], dspI};
 
-    casez ({pc[12], insn[15:13]})                          // Calculate new return stack pointer
+    casez ({fetch, insn[15:13]})                          // Calculate new return stack pointer
     4'b1_???:   {rstkW, rspI} = {1'b0,      2'b11};          // Memory Fetch, triggered by high address bit set
     4'b0_010:   {rstkW, rspI} = {1'b1,      2'b01};          // Call
     4'b0_011:   {rstkW, rspI} = {func_T_R,  insn[3:2]};      // ALU
     default:    {rstkW, rspI} = {1'b0,      2'b00};          // Default: Unchanged
     endcase
 
-    casez ({notreboot, pc[12], insn[15:13], insn[7], |st0})   // New address for PC
+    casez ({notreboot, fetch, insn[15:13], insn[7], |st0})   // New address for PC
     7'b0_0_???_?_?:   pcN = 0;                               // Boot: Start at address zero
     7'b1_0_000_?_?,
     7'b1_0_010_?_?,

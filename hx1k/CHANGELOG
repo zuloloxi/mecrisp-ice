@@ -41,3 +41,7 @@ Equipped by Matthias Koch with:
 * Ticks counter overflow interrupt, $1FFE is vector. Place exit or a JMP opcode there.
 * Added eint and dint
 * Removed SB_Warmboot
+
+20. April 2016: Mecrisp-Ice 0.6
+
+* Fixed faulty logic for interrupts which happen in a memory fetch cycle.

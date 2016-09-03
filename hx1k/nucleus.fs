@@ -1284,7 +1284,7 @@ header dint : dint ( -- ) h# 0 h# 0800 io! ;
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 5 emit
+    [char] 6 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.
