@@ -2,10 +2,6 @@
 
 : within    over - >r - r> u< ; 3 foldable
 
-: .(
-    [char] ) parse type
-; immediate
-
 : s"
     [char] " parse
     state @ if

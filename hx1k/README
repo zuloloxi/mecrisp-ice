@@ -440,7 +440,7 @@ String routines:
                         gives back its address and length when executed.
 
         ." Hello"       Compiles a string and
-        .( Hello)       ( -- )
+                        ( -- )
                         prints it when executed.
 
         ( Comment )     Ignore Comment
@@ -494,7 +494,6 @@ Pictured numerical output:
 Deep insights:
 
         words           ( -- ) Prints list of defined words.
-        .s              ( many -- many ) Prints stack contents
         .x2             ( c -- ) Prints  8 bit unsigned in hex base
         .x              ( u -- ) Prints 16 bit unsigned in hex base
                                  This is independent of number subsystem.
@@ -713,6 +712,8 @@ Sectors from 1 to 63. Sector 1 is automatically loaded after Reset.
 ;------------------------------------------------------------------------------
 ; Insight tools that are gone after NEW
 ;------------------------------------------------------------------------------
+
+        .s              ( many -- many ) Prints stack contents
 
         dump            ( addr len -- ) Dump memory contents
 

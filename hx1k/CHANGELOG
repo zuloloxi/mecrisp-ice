@@ -2,6 +2,8 @@
 Original work:
 J1a processor and Swapforth by James Bowman
 
+19. September 2015: Mecrisp-Ice 0.1
+
 Equipped by Matthias Koch with:
 
 * MSP430 style IO
@@ -15,5 +17,8 @@ Equipped by Matthias Koch with:
 * Ledcomm
 * IrDA example
 
-19. September 2015: Mecrisp-Ice 0.1
+22. September 2015: Mecrisp-Ice 0.2
+
+* .s will not crash anymore on deep stacks
+* Disassembler improved
 

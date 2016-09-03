@@ -78,34 +78,34 @@ module j1(
   assign io_wr = !reboot & is_alu & func_iow;
   assign io_rd = !reboot & is_alu & func_ior;
 
-  assign rstkD = (insn[13] == 1'b0) ? {{(`WIDTH - 14){1'b0}}, pc_plus_1, 1'b0} : st0;
+  assign rstkD = (insn[13] == 1'b0) ? {{(`WIDTH - 14){1'b0}}, pc_plus_1, 1'b0} : st0;  // Value which could be written to return stack: Either return address in case of a call or TOS.
 
   always @*
   begin
-    casez ({pc[12], insn[15:13]})
+    casez ({pc[12], insn[15:13]})                          // Calculate new data stack pointer
     4'b1_???,
-    4'b0_1??:   {dstkW, dspI} = {1'b1,      2'b01};
-    4'b0_001:   {dstkW, dspI} = {1'b0,      2'b11};
-    4'b0_011:   {dstkW, dspI} = {func_T_N,  {insn[1:0]}};
-    default:    {dstkW, dspI} = {1'b0,      2'b00};
+    4'b0_1??:   {dstkW, dspI} = {1'b1,      2'b01};          // Memory Fetch & Literal
+    4'b0_001:   {dstkW, dspI} = {1'b0,      2'b11};          // Conditional jump
+    4'b0_011:   {dstkW, dspI} = {func_T_N,  {insn[1:0]}};    // ALU
+    default:    {dstkW, dspI} = {1'b0,      2'b00};          // Default: Unchanged
     endcase
     dspN = dsp + {dspI[1], dspI[1], dspI[1], dspI};
 
-    casez ({pc[12], insn[15:13]})
-    4'b1_???:   {rstkW, rspI} = {1'b0,      2'b11};
-    4'b0_010:   {rstkW, rspI} = {1'b1,      2'b01};
-    4'b0_011:   {rstkW, rspI} = {func_T_R,  insn[3:2]};
-    default:    {rstkW, rspI} = {1'b0,      2'b00};
+    casez ({pc[12], insn[15:13]})                          // Calculate new return stack pointer
+    4'b1_???:   {rstkW, rspI} = {1'b0,      2'b11};          // Memory Fetch, triggered by high address bit set
+    4'b0_010:   {rstkW, rspI} = {1'b1,      2'b01};          // Call
+    4'b0_011:   {rstkW, rspI} = {func_T_R,  insn[3:2]};      // ALU
+    default:    {rstkW, rspI} = {1'b0,      2'b00};          // Default: Unchanged
     endcase
 
-    casez ({reboot, pc[12], insn[15:13], insn[7], |st0})
-    7'b1_0_???_?_?:   pcN = 0;
+    casez ({reboot, pc[12], insn[15:13], insn[7], |st0})   // New address for PC
+    7'b1_0_???_?_?:   pcN = 0;                               // Boot: Start at address zero
     7'b0_0_000_?_?,
     7'b0_0_010_?_?,
-    7'b0_0_001_?_0:   pcN = insn[12:0];
+    7'b0_0_001_?_0:   pcN = insn[12:0];                      // Jumps & Calls: Destination address
     7'b0_1_???_?_?,
-    7'b0_0_011_1_?:   pcN = rst0[13:1];
-    default:          pcN = pc_plus_1;
+    7'b0_0_011_1_?:   pcN = rst0[13:1];                      // Memory Fetch & ALU+exit: Return
+    default:          pcN = pc_plus_1;                       // Default: Increment PC to next opcode
     endcase
   end
 

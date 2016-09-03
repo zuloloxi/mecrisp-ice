@@ -971,6 +971,7 @@ header hex
   setbase
 ;
 
+header-1-foldable cells    :noname     2*       ;
 header-1-foldable 2*       :noname     2*       ;
 header-1-foldable 2/       :noname     2/       ;
 header !                   :noname     !        ;
@@ -978,8 +979,8 @@ header-2-foldable +        :noname     +        ;
 header-2-foldable xor      :noname     xor      ;
 header-2-foldable and      :noname     and      ;
 header-2-foldable or       :noname     or       ;
-header-1-foldable invert   :noname     invert   ;
 header-1-foldable not      :noname     invert   ;
+header-1-foldable invert   :noname     invert   ;
 header-2-foldable =        :noname     =        ;
 header-2-foldable <        :noname     <        ;
 header-2-foldable u<       :noname     u<       ;
@@ -994,7 +995,7 @@ header-imm >r   :noname     inline: >r ;
 header-imm r>   :noname     inline: r> ;
 header-imm r@   :noname     inline: r@ ;
 header-imm rdrop  :noname   inline: rdrop ;
-header-1-foldable cells    :noname     2*       ;
+
 
 header abort
 : abort
@@ -1049,8 +1050,8 @@ header number
 : number ( addr len -- 0 )
          (             n 1 )
          (             d-low d-high 2 )
-        
-        
+
+
   d# 3 over= if
     over dup d# 2 + c@ [char] ' =
          swap       c@ [char] ' = and
@@ -1058,21 +1059,21 @@ header number
            drop 1+ c@ d# 1 exit
          then
   then
-  
+
 
   doubleresult off
   sign off
   base @i >r
 
   d# 0 d# 0 2swap
- 
+
   ( d-low d-high addr len )
- 
+
   begin
     dup
   while
     >r dup>r c@
- 
+
     [char] $ over= if drop hex             else
     [char] # over= if drop decimal         else
     [char] % over= if drop binary          else
@@ -1087,18 +1088,18 @@ header number
               drop 2drop rdrop rdrop
               r> base _! jmp false
             then
-            
+
     then then then then then
-                        
-    r> r> 1/string    
+
+    r> r> 1/string
   repeat
   2drop
 
   sign @i if dnegate then
   doubleresult @i if d# 2 else drop d# 1 then
-  
+
   r> base _!
-;  
+;
 
 
 : flushconstants ( n*x count -- {n-1}*x count-1 ) \ Recursive to write them out in reverse order
@@ -1309,15 +1310,16 @@ header load
   quit
 ;
 
-header .s
-: .s
-    [char] < emit depth hex2 [char] > emit space
-: (.s)
-    depth if
-        >r (.s) r>
-        dup .
-    then
-;
+\ Recursive .s which crashes when stack is too deep due to return stack overflow.
+\ header .s
+\ : .s
+\     [char] < emit depth hex2 [char] > emit space
+\ : (.s)
+\     depth if
+\         >r (.s) r>
+\         dup .
+\     then
+\ ;
 
 : main
     key> drop \ Reset UART state
@@ -1337,7 +1339,7 @@ header .s
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 1 emit
+    [char] 2 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.

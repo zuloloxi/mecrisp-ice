@@ -65,12 +65,12 @@ new
 : rx     ( -- ) begin ir? if (irda-rx) emit then key? until ;
 
 : tx ( -- )
-  'a' 
-  begin 
+  'a'
+  begin
     dup irda-tx
     dup 'z' = if drop 'a' else 1+ then
     10 ms
-    key? 
+    key?
   until
   drop
 ;
