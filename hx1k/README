@@ -709,6 +709,9 @@ Sectors from 1 to 63. Sector 1 is automatically loaded after Reset.
         now             ( -- )   Clear tick counter
         delay           ( u -- ) Wait until u ticks are reached
 
+        randombit       ( -- 0 | 1 ) Gives a random bit
+        random          ( -- x ) Gives a random number
+
 ;------------------------------------------------------------------------------
 ; Insight tools that are gone after NEW
 ;------------------------------------------------------------------------------

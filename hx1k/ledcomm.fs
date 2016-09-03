@@ -173,5 +173,5 @@ true brightness !
 
 : ledcomm ( -- )
   ledcomm-init
-  begin now ledcomm-tick 244 12 * delay ( 244 us @ 12 MHz inclusive algorithm ) again
+  begin now ledcomm-tick 244 48 * delay ( 244 us @ 48 MHz inclusive algorithm ) again
 ;

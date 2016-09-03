@@ -1,6 +1,6 @@
 `default_nettype none
 
-`define CLKFREQ   12000000    // frequency of incoming signal 'clk'
+`define CLKFREQ   48000000    // frequency of incoming signal 'clk'
 
 // Simple baud generator for transmitter
 // ser_clk pulses at 115200 Hz
@@ -9,7 +9,7 @@ module baudgen(
   input wire clk,
   output wire ser_clk);
 
-  localparam lim = (`CLKFREQ / 115200) - 1; 
+  localparam lim = (`CLKFREQ / 115200) - 1;
   localparam w = $clog2(lim);
   wire [w-1:0] limit = lim;
   reg [w-1:0] counter;
@@ -30,7 +30,7 @@ module baudgen2(
   input wire restart,
   output wire ser_clk);
 
-  localparam lim = (`CLKFREQ / (2 * 115200)) - 1; 
+  localparam lim = (`CLKFREQ / (2 * 115200)) - 1;
   localparam w = $clog2(lim);
   wire [w-1:0] limit = lim;
   reg [w-1:0] counter;
@@ -104,7 +104,7 @@ module rxuart(
    input wire resetq,
    input wire uart_rx,      // UART recv wire
    input wire rd,           // read strobe
-   output wire valid,       // has data 
+   output wire valid,       // has data
    output wire [7:0] data); // data
   reg [4:0] bitcount;
   reg [7:0] shifter;
@@ -162,7 +162,7 @@ module buart(
    output wire tx,          // xmit wire
    input wire rd,           // read strobe
    input wire wr,           // write strobe
-   output wire valid,       // has recv data 
+   output wire valid,       // has recv data
    output wire busy,        // is transmitting
    input wire [7:0] tx_data,
    output wire [7:0] rx_data // data

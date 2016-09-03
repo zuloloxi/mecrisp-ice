@@ -109,11 +109,23 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
            input resetq,
 );
 
-  localparam MHZ = 12;
-
   wire clk;
-  SB_GB clockbuffer ( .USER_SIGNAL_TO_GLOBAL_BUFFER (oscillator), .GLOBAL_BUFFER_OUTPUT (clk) );
-  // SB_GB_IO clockbuffer ( .PACKAGE_PIN (oscillator), .GLOBAL_BUFFER_OUTPUT (clk) );  // Waits for support in Arachne-PNR
+  // SB_GB clockbuffer ( .USER_SIGNAL_TO_GLOBAL_BUFFER (oscillator), .GLOBAL_BUFFER_OUTPUT (clk) );
+
+  SB_PLL40_CORE #(.FEEDBACK_PATH("SIMPLE"),
+                  .PLLOUT_SELECT("GENCLK"),
+                  .DIVR(4'b0000),
+                  .DIVF(7'd3),
+                  .DIVQ(3'b000),
+                  .FILTER_RANGE(3'b001),
+                 ) uut (
+                         .REFERENCECLK(oscillator),
+                         .PLLOUTCORE(clk),
+                         //.PLLOUTGLOBAL(clk),
+                         // .LOCK(D5),
+                         .RESETB(1'b1),
+                         .BYPASS(1'b0)
+                        );
 
   wire io_rd, io_wr;
   wire [15:0] mem_addr;

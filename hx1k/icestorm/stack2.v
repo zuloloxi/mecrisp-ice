@@ -1,7 +1,7 @@
 `default_nettype none
 `define WIDTH 16
 
-module stack2( 
+module stack2(
   input wire clk,
   output wire [`WIDTH-1:0] rd,
   input wire we,

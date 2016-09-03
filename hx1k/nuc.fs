@@ -1321,6 +1321,11 @@ header load
 \     then
 \ ;
 
+header randombit
+: random ( -- 0 | 1 )
+  randombit
+;
+
 : main
     key> drop \ Reset UART state
 
@@ -1339,7 +1344,7 @@ header load
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 2 emit
+    [char] 3 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.

@@ -37,6 +37,22 @@ module j1(
   // stack2 #(.DEPTH(24)) dstack(.clk(clk), .rd(st1),  .we(dstkW), .wd(st0),   .delta(dspI));
   // stack2 #(.DEPTH(24)) rstack(.clk(clk), .rd(rst0), .we(rstkW), .wd(rstkD), .delta(rspI));
 
+
+  // ######   RING OSCILLATOR   ###############################
+
+  wire [1:0] buffers_in, buffers_out;
+  assign buffers_in = {buffers_out[0:0], ~buffers_out[1]};
+  SB_LUT4 #(
+          .LUT_INIT(16'd2)
+  ) buffers [1:0] (
+          .O(buffers_out),
+          .I0(buffers_in),
+          .I1(1'b0),
+          .I2(1'b0),
+          .I3(1'b0)
+  );
+  wire random = ~buffers_out[1];
+
   always @*
   begin
     // Compute the new value of st0
@@ -58,7 +74,7 @@ module j1(
       9'b0_011_?1001: st0N = {st0[`WIDTH - 1], st0[`WIDTH - 1:1]};
       9'b0_011_?1010: st0N = {st0[`WIDTH - 2:0], 1'b0};
       9'b0_011_?1011: st0N = rst0;
-      9'b0_011_?1100: st0N = io_din;
+      9'b0_011_?1100: st0N = {{(`WIDTH - 1){1'b0}}, random};
       9'b0_011_?1101: st0N = io_din;
       9'b0_011_?1110: st0N = {{(`WIDTH - 5){1'b0}}, dsp};
       9'b0_011_?1111: st0N = {`WIDTH{(st1 < st0)}};

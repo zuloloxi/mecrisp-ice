@@ -49,3 +49,5 @@
 : now   ( -- ) 0 $4000 io! ;
 : ticks ( -- u ) $4000 io@ ;
 : delay ( u -- ) begin dup ticks u< until drop ;
+
+: random ( -- x ) 0  16 0 do 2* randombit or 100 0 do loop loop ;

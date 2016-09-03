@@ -7,8 +7,8 @@ new
 
 \ For 9600 Baud:
 
-1250 constant bitlength    \ = 12 MHz / 9600 Hz
- 234 constant pulselength  \ = 12 Mhz / 9600 Hz * 3/16
+5000 constant bitlength    \ = 48 MHz / 9600 Hz
+ 938 constant pulselength  \ = 48 Mhz / 9600 Hz * 3/16
 
 \ -----------------------------------------------------------------------------
 

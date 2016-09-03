@@ -22,3 +22,8 @@ Equipped by Matthias Koch with:
 * .s will not crash anymore on deep stacks
 * Disassembler improved
 
+27. September 2015: Mecrisp-Ice 0.3
+
+* Clock speed increased to 48 MHz
+* Added randombit and random which use clock jitter
+  from a free running ring oscillator
