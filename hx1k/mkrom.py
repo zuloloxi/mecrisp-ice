@@ -1,4 +1,4 @@
-code = list(open("build/nuc.hex"))
+code = list(open("build/iceimage.hex"))
 
 template = """
   SB_RAM2048x2 #(

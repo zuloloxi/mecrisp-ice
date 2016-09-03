@@ -70,10 +70,10 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
            output CTS,        // UART CTS - PIO3_05
            input  RTS,        // UART RTS - PIO3_06
 
-           output PIOS_00,    // flash SCK
-           input PIOS_01,     // flash MISO
-           output PIOS_02,    // flash MOSI
-           output PIOS_03,    // flash CS
+           output PIOS_00,    // Flash SCK
+           input PIOS_01,     // Flash MISO
+           output PIOS_02,    // Flash MOSI
+           output PIOS_03,    // Flash CS
 
            inout PIO1_02,    // PMOD 1
            inout PIO1_03,    // PMOD 2
@@ -110,7 +110,6 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
 );
 
   wire clk;
-  // SB_GB clockbuffer ( .USER_SIGNAL_TO_GLOBAL_BUFFER (oscillator), .GLOBAL_BUFFER_OUTPUT (clk) );
 
   SB_PLL40_CORE #(.FEEDBACK_PATH("SIMPLE"),
                   .PLLOUT_SELECT("GENCLK"),
@@ -235,10 +234,28 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
      .tx_data(dout_[7:0]),
      .rx_data(uart0_data));
 
+  // ######   LEDS & PIOS   ###################################
+
   reg [5:0] PIOS;
   assign {CTS, PIO1_20, PIO1_18, PIOS_00, PIOS_02, PIOS_03} = PIOS;
   reg [4:0] LEDS;
   assign {D1,D2,D3,D4,D5} = LEDS;
+
+  // ######   RING OSCILLATOR   ###############################
+
+  wire [1:0] buffers_in, buffers_out;
+  assign buffers_in = {buffers_out[0:0], ~buffers_out[1]};
+  SB_LUT4 #(
+          .LUT_INIT(16'd2)
+  ) buffers [1:0] (
+          .O(buffers_out),
+          .I0(buffers_in),
+          .I1(1'b0),
+          .I2(1'b0),
+          .I3(1'b0)
+  );
+
+  wire random = ~buffers_out[1];
 
   // ######   IO PORTS   ######################################
 
@@ -267,23 +284,24 @@ module top(input oscillator, output D1, output D2, output D3, output D4, output 
 
   assign io_din =
 
-    (io_addr_[ 0] ? { 8'd0, pmod_in}                                         : 16'd0) |
-    (io_addr_[ 1] ? { 8'd0, pmod_out}                                        : 16'd0) |
-    (io_addr_[ 2] ? { 8'd0, pmod_dir}                                        : 16'd0) |
+    (io_addr_[ 0] ? { 8'd0, pmod_in}                                                 : 16'd0) |
+    (io_addr_[ 1] ? { 8'd0, pmod_out}                                                : 16'd0) |
+    (io_addr_[ 2] ? { 8'd0, pmod_dir}                                                : 16'd0) |
+    (io_addr_[ 3] ? { 5'd0, LEDS, PIOS}                                              : 16'd0) |
 
-    (io_addr_[ 4] ? { 8'd0, header1_in}                                      : 16'd0) |
-    (io_addr_[ 5] ? { 8'd0, header1_out}                                     : 16'd0) |
-    (io_addr_[ 6] ? { 8'd0, header1_dir}                                     : 16'd0) |
+    (io_addr_[ 4] ? { 8'd0, header1_in}                                              : 16'd0) |
+    (io_addr_[ 5] ? { 8'd0, header1_out}                                             : 16'd0) |
+    (io_addr_[ 6] ? { 8'd0, header1_dir}                                             : 16'd0) |
 
-    (io_addr_[ 8] ? { 8'd0, header2_in}                                      : 16'd0) |
-    (io_addr_[ 9] ? { 8'd0, header2_out}                                     : 16'd0) |
-    (io_addr_[10] ? { 8'd0, header2_dir}                                     : 16'd0) |
 
-    (io_addr_[ 3] ? { 5'd0, LEDS, PIOS}                                      : 16'd0) |  // This is here as reordering of the lines saves gates.
-    (io_addr_[14] ?         ticks                                            : 16'd0) |
+    (io_addr_[ 8] ? { 8'd0, header2_in}                                              : 16'd0) |
+    (io_addr_[ 9] ? { 8'd0, header2_out}                                             : 16'd0) |
+    (io_addr_[10] ? { 8'd0, header2_dir}                                             : 16'd0) |
 
-    (io_addr_[12] ? { 8'd0, uart0_data}                                      : 16'd0) |
-    (io_addr_[13] ? {11'd0, RTS, PIO1_19, PIOS_01, uart0_valid, !uart0_busy} : 16'd0);
+
+    (io_addr_[12] ? { 8'd0, uart0_data}                                              : 16'd0) |
+    (io_addr_[13] ? {10'd0, random, RTS, PIO1_19, PIOS_01, uart0_valid, !uart0_busy} : 16'd0) |
+    (io_addr_[14] ?         ticks                                                    : 16'd0) ;
 
   // Very few gates needed: Simply trigger warmboot by any IO access to $8000 / $8001 / $8002 / $8003.
   SB_WARMBOOT _sb_warmboot ( .BOOT(io_addr_[15]), .S1(io_addr_[1]), .S0(io_addr_[0]) );

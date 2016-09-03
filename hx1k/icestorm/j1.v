@@ -14,16 +14,17 @@ module j1(
   input  wire [`WIDTH-1:0] io_din,
 
   output wire [12:0] code_addr,
-  input  wire [15:0] insn);
+  input  wire [15:0] insn
+);
 
-  reg [4:0] dsp, dspN;          // data stack pointer
-  reg [`WIDTH-1:0] st0, st0N;   // top of data stack
-  reg dstkW;                    // data stack write
+  reg [4:0] dsp, dspN;          // Data stack pointer
+  reg [`WIDTH-1:0] st0, st0N;   // Top of data stack
+  reg dstkW;                    // Data stack write
 
-  reg [12:0] pc, pcN;           // program counter
+  reg [12:0] pc, pcN;           // Program Counter
   wire [12:0] pc_plus_1 = pc + 13'd1;
-  reg rstkW;                    // return stack write
-  wire [`WIDTH-1:0] rstkD;      // return stack write value
+  reg rstkW;                    // Return stack write
+  wire [`WIDTH-1:0] rstkD;      // Return stack write value
   reg reboot = 1;
 
   assign mem_addr = st0[15:0];
@@ -34,50 +35,42 @@ module j1(
   reg [1:0] dspI, rspI;
   stack2 #(.DEPTH(16)) dstack(.clk(clk), .rd(st1),  .we(dstkW), .wd(st0),   .delta(dspI));
   stack2 #(.DEPTH(16)) rstack(.clk(clk), .rd(rst0), .we(rstkW), .wd(rstkD), .delta(rspI));
-  // stack2 #(.DEPTH(24)) dstack(.clk(clk), .rd(st1),  .we(dstkW), .wd(st0),   .delta(dspI));
-  // stack2 #(.DEPTH(24)) rstack(.clk(clk), .rd(rst0), .we(rstkW), .wd(rstkD), .delta(rspI));
 
+  wire [16:0] minus = {1'b1, ~st0} + st1 + 1;
 
-  // ######   RING OSCILLATOR   ###############################
-
-  wire [1:0] buffers_in, buffers_out;
-  assign buffers_in = {buffers_out[0:0], ~buffers_out[1]};
-  SB_LUT4 #(
-          .LUT_INIT(16'd2)
-  ) buffers [1:0] (
-          .O(buffers_out),
-          .I0(buffers_in),
-          .I1(1'b0),
-          .I2(1'b0),
-          .I3(1'b0)
-  );
-  wire random = ~buffers_out[1];
-
+  wire signedless = st0[15] ^ st1[15] ? st1[15] : minus[16];
+  
   always @*
   begin
     // Compute the new value of st0
     casez ({pc[12], insn[15:8]})
-      9'b1_???_?????: st0N = insn;                    // literal
-      9'b0_1??_?????: st0N = { {(`WIDTH - 15){1'b0}}, insn[14:0] };    // literal
-      9'b0_000_?????: st0N = st0;                     // jump
-      9'b0_010_?????: st0N = st0;                     // call
-      9'b0_001_?????: st0N = st1;                     // conditional jump
-      9'b0_011_?0000: st0N = st0;                     // ALU operations...
-      9'b0_011_?0001: st0N = st1;
-      9'b0_011_?0010: st0N = st0 + st1;
-      9'b0_011_?0011: st0N = st0 & st1;
-      9'b0_011_?0100: st0N = st0 | st1;
-      9'b0_011_?0101: st0N = st0 ^ st1;
-      9'b0_011_?0110: st0N = ~st0;
-      9'b0_011_?0111: st0N = {`WIDTH{(st1 == st0)}};
-      9'b0_011_?1000: st0N = {`WIDTH{($signed(st1) < $signed(st0))}};
-      9'b0_011_?1001: st0N = {st0[`WIDTH - 1], st0[`WIDTH - 1:1]};
-      9'b0_011_?1010: st0N = {st0[`WIDTH - 2:0], 1'b0};
-      9'b0_011_?1011: st0N = rst0;
-      9'b0_011_?1100: st0N = {{(`WIDTH - 1){1'b0}}, random};
-      9'b0_011_?1101: st0N = io_din;
-      9'b0_011_?1110: st0N = {{(`WIDTH - 5){1'b0}}, dsp};
-      9'b0_011_?1111: st0N = {`WIDTH{(st1 < st0)}};
+      9'b1_???_?????: st0N = insn;                                  // Memory fetch
+
+      9'b0_1??_?????: st0N = { {(`WIDTH - 15){1'b0}}, insn[14:0] }; // Literal
+      9'b0_000_?????: st0N = st0;                                   // Jump
+      9'b0_010_?????: st0N = st0;                                   // Call
+      9'b0_001_?????: st0N = st1;                                   // Conditional jump
+
+      9'b0_011_?0000: st0N = st0;                                   // TOS
+      9'b0_011_?0001: st0N = st1;                                   // NOS
+      9'b0_011_?0010: st0N = st0 + st1;                             // +
+      9'b0_011_?0011: st0N = st0 & st1;                             // and
+
+      9'b0_011_?0100: st0N = st0 | st1;                             // or
+      9'b0_011_?0101: st0N = st0 ^ st1;                             // xor
+      9'b0_011_?0110: st0N = ~st0;                                  // invert
+      9'b0_011_?0111: st0N = {`WIDTH{(minus == 0)}};                //  =
+
+      9'b0_011_?1000: st0N = {`WIDTH{(signedless)}};                //  <
+      9'b0_011_?1001: st0N = {st0[`WIDTH - 1], st0[`WIDTH - 1:1]};  // 1 arshift
+      9'b0_011_?1010: st0N = {st0[`WIDTH - 2:0], 1'b0};             // 1 lshift
+      9'b0_011_?1011: st0N = rst0;                                  // r@
+
+      9'b0_011_?1100: st0N = minus[15:0];                           // -
+      9'b0_011_?1101: st0N = io_din;                                // Read IO
+      9'b0_011_?1110: st0N = {{(`WIDTH - 5){1'b0}}, dsp};           // depth
+      9'b0_011_?1111: st0N = {`WIDTH{(minus[16])}};                 // u<
+
       default: st0N = {`WIDTH{1'bx}};
     endcase
   end
@@ -94,7 +87,8 @@ module j1(
   assign io_wr = !reboot & is_alu & func_iow;
   assign io_rd = !reboot & is_alu & func_ior;
 
-  assign rstkD = (insn[13] == 1'b0) ? {{(`WIDTH - 14){1'b0}}, pc_plus_1, 1'b0} : st0;  // Value which could be written to return stack: Either return address in case of a call or TOS.
+  // Value which could be written to return stack: Either return address in case of a call or TOS.
+  assign rstkD = (insn[13] == 1'b0) ? {{(`WIDTH - 14){1'b0}}, pc_plus_1, 1'b0} : st0;
 
   always @*
   begin

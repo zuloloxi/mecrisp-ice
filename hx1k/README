@@ -51,7 +51,7 @@ What you need:
 Basic usage:
 
   Flash the binary:
-  iceprog -b icestorm/j1a.bin
+  iceprog -b j1a.bin
 
   Open a terminal:
   picocom -b 115200 /dev/ttyUSB1 --send-cmd "ascii-xfr -s -l 30 -n"
@@ -123,7 +123,7 @@ Contents of misc.out and misc.in:
      0004    2  SPI SCK         SPI MISO
      0008    3  IrDA-TXD        IrDA-RXD
      0010    4  IrDA-Sleep      RTS
-     0020    5  CTS
+     0020    5  CTS             Random
      0040    6  Green LED
      0080    7  Red LED
      0100    8  Red LED
@@ -225,25 +225,19 @@ are saved during the process and reloaded with the image.
 If you wish to build the whole package yourself:
 
 * Gforth
-* Icestorm tools for bitstream generation
+* Freepascal
 * Yosys for synthesis
 * Arachne-PNR for place and route
+* Icestorm tools for bitstream generation
 
 ... and their dependencies.
 
 In a nutshell, you need to type:
 
   compile
-  iceprog -b icestorm/j1a.bin
-  python shell.py -h /dev/ttyUSB1
-    #include swapforth.fs
-    #flash build/nuc.hex
-    #bye
-  make
-  make -C icestorm
-  iceprog icestorm/j1a.bin
+  iceprog -b j1a.bin
 
-Have a look on the original Swapforth package from James Bowman for details.
+That's all.
 
 ;------------------------------------------------------------------------------
 Here comes a word list,                                          -- Glossary --

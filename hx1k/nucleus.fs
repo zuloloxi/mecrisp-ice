@@ -3,7 +3,7 @@
 
 header-1-foldable 1+       : 1+        d# 1 + ;
 header-1-foldable negate   : negate    invert 1+ ;
-header-1-foldable 1-       : 1-        d# -1 + ;
+header-1-foldable 1-       : 1-        d# 1 - ;
 header-1-foldable 0=       : 0=        d# 0 = ;
 header-1-foldable cell+    : cell+     d# 2 + ;
 
@@ -209,14 +209,12 @@ create forth    0 ,
 create dp       0 ,         \ Data pointer, grows up
 create lastword 0 ,
 create thisxt   0 ,
-\ create syncpt   0 ,
 create sourceC  0 , 0 ,
 create >in      0 ,
 create state    0 ,
 create rO       0 ,
 create leaves   0 ,
 create init     0 ,
-create tethered 0 ,
 create constantfoldingpointer 0 ,
 create foldability 0 ,
 create fineforoptimisation 0 ,
@@ -228,12 +226,6 @@ header-0-foldable >in   :noname >in  ;
 header-0-foldable forth :noname forth ;
 header-0-foldable init  :noname init ;
 header-0-foldable tib   :noname tib ;
-
-\ tethered mode flag
-header-0-foldable tth
-: tth
-    tethered
-;
 
 : nextword
     @ h# 1ffe and  \ Mask off the low immediate bit and the three high foldability marker bits
@@ -252,23 +244,6 @@ header words : words
     drop
 ;
 
-\ header dump
-\ : dump ( addr u -- )
-\     cr over hex4
-\     begin  ( addr u )
-\         ?dup
-\     while
-\         over c@ space hex2
-\         1- swap 1+   ( u' addr' )
-\         dup h# f and 0= if  ( next line? )
-\             cr dup hex4
-\         then
-\         swap
-\     repeat
-\     drop cr
-\ ;
-
-header-2-foldable -        : -         negate + ;
 header-1-foldable abs      : abs       dup 0< if negate then ;
 header here                : here      dp @i ;
 
@@ -457,7 +432,7 @@ header align
 ;
 
 
-header sfind
+header sfind ( c-addr len -- c-addr len 0 | a-addr flags )
 : sfind
     forth @i
     begin
@@ -498,7 +473,7 @@ header fill
   while
     r@ over c! 1+
   repeat
-  r> drop 2drop
+  rdrop 2drop
 ;
 
 header cmove
@@ -534,7 +509,7 @@ header 2@
 
 header 2!
 : 2! \ ( lo hi a -- )
-    tuck _!
+    tuck!
     cell+ _!
 ;
 
@@ -649,10 +624,6 @@ header compile,
   w,
 ;
 
-\ : sync
-\     dp @i syncpt _!
-\ ;
-
 header s,
 : s,
     dup c,
@@ -687,7 +658,6 @@ header-imm sliteral
     parse-name
     s,
     dp @i thisxt _!
-    \ sync
 ;
 
 header immediate
@@ -727,7 +697,6 @@ header :noname
     align dp @i
     dup thisxt _!
     lastword off
-    \ sync
     t]
 ;
 
@@ -787,7 +756,6 @@ header-imm then     ( addr -- )
 : tthen
     here 2/
     swap +!
-    \ sync
 ;
 
 header-imm begin
@@ -976,6 +944,7 @@ header-1-foldable 2*       :noname     2*       ;
 header-1-foldable 2/       :noname     2/       ;
 header !                   :noname     !        ;
 header-2-foldable +        :noname     +        ;
+header-2-foldable -        :noname     -        ;
 header-2-foldable xor      :noname     xor      ;
 header-2-foldable and      :noname     and      ;
 header-2-foldable or       :noname     or       ;
@@ -1003,8 +972,6 @@ header abort
     [ tdp @ dup insertquit ! 2 + org ]
 ;
 
-: ?abort if abort then ;
-
 header-imm literal
 : tliteral
     dup 0< if
@@ -1018,7 +985,7 @@ header-imm literal
 header-imm postpone
 :noname
     parse-name sfind
-    dup jz ?abort
+    dup jz abort
     0< if
         tliteral
         ['] compile,
@@ -1030,7 +997,7 @@ header '
 :noname
     parse-name
     sfind
-    jz ?abort
+    jz abort
 ;
 
 header char
@@ -1158,7 +1125,7 @@ header number
         then
 
       else ( addr len ) \ Not found ? Perhaps it is a number.
-        number 0= ?abort \ Leave the literal(s) on the stack
+        number jz abort \ Leave the literal(s) on the stack
       then
 
     repeat
@@ -1179,7 +1146,6 @@ header number
 
 header accept
 : accept
-    tethered @i if d# 30 emit then
 
     >r d# 0  ( addr len R: maxlen )
 
@@ -1193,7 +1159,7 @@ header accept
         if
             over r@ u<
             if
-                tethered @i 0= if dup emit then
+                dup emit
                 >r 2dup+ r@ swap c! 1+ r>
             then
         then
@@ -1230,7 +1196,6 @@ header quit
     begin depth while drop repeat \ Clear the stack
     cr
     decimal
-    tethered off
     state off
     constantfoldingpointer on
 
@@ -1310,22 +1275,6 @@ header load
   quit
 ;
 
-\ Recursive .s which crashes when stack is too deep due to return stack overflow.
-\ header .s
-\ : .s
-\     [char] < emit depth hex2 [char] > emit space
-\ : (.s)
-\     depth if
-\         >r (.s) r>
-\         dup .
-\     then
-\ ;
-
-header randombit
-: random ( -- 0 | 1 )
-  randombit
-;
-
 : main
     key> drop \ Reset UART state
 
@@ -1344,7 +1293,7 @@ header randombit
     [char] e 2emit
     [char] .
     [char] 0 2emit
-    [char] 3 emit
+    [char] 4 emit
     cr
 
     d# 1 load \ Try to load image from sector 1 if available.

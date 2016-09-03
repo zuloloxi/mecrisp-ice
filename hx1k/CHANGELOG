@@ -27,3 +27,10 @@ Equipped by Matthias Koch with:
 * Clock speed increased to 48 MHz
 * Added randombit and random which use clock jitter
   from a free running ring oscillator
+
+29. February 2016: Mecrisp-Ice 0.4
+
+* Minus opcode added to CPU
+* Small speed improvements
+* Ice Cream Machine emulates J1a and helps building the package in one step
+* Removed tethered mode

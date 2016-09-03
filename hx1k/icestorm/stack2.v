@@ -6,8 +6,10 @@ module stack2(
   output wire [`WIDTH-1:0] rd,
   input wire we,
   input wire [1:0] delta,
-  input wire [`WIDTH-1:0] wd);
-  parameter DEPTH = 18;
+  input wire [`WIDTH-1:0] wd
+);
+
+  parameter DEPTH = 16;
   localparam BITS = (`WIDTH * DEPTH) - 1;
 
   wire move = delta[0];
